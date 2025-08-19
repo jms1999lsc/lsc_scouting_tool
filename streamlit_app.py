@@ -380,7 +380,7 @@ for src, flag in zip(metric_slots, already_norm_flags):
     per90_name = src if (flag or is_per90_colname(src)) else f"{src}_p90"
     show_cols += [per90_name, per90_name + "_pct"]
 
-# 1) remover duplicados da lista de colunas, preservando a 1ª ocorrência
+# 1) remover duplicados na lista (preserva 1ª ocorrência)
 seen = set()
 show_cols_unique = []
 for c in show_cols:
@@ -388,28 +388,28 @@ for c in show_cols:
         show_cols_unique.append(c)
         seen.add(c)
 if len(show_cols_unique) < len(show_cols):
-    st.sidebar.warning("⚠️ Removi colunas duplicadas no output (métrica repetida ou mapeamento igual).")
+    st.sidebar.warning("⚠️ Removi colunas duplicadas na seleção (métrica repetida ou mapeamento igual).")
 
-# 2) construir o DataFrame de saída
+# 2) construir DF e já RENOMEAR primeiro
 out = dfp.sort_values("score", ascending=False)[show_cols_unique].reset_index(drop=True)
-out = out.rename(columns={"_market_value":"market_value","_contract_end":"contract_end"})
+out = out.rename(columns={"_market_value": "market_value", "_contract_end": "contract_end"})
 
-# 3) garantir nomes de colunas 100% únicos (ex.: 'Shots', 'Shots.1', 'Shots.2' se necessário)
-def _make_unique(cols):
-    seen = {}
-    new = []
-    for c in cols:
-        if c not in seen:
-            seen[c] = 0
-            new.append(c)
+# 3) garantir nomes 100% únicos DEPOIS do rename
+def make_unique(cols):
+    counts = {}
+    result = []
+    for c in map(str, cols):
+        if c in counts:
+            counts[c] += 1
+            result.append(f"{c}.{counts[c]}")
         else:
-            seen[c] += 1
-            new.append(f"{c}.{seen[c]}")
-    return new
+            counts[c] = 0
+            result.append(c)
+    return result
 
-if len(set(out.columns)) < len(out.columns):
-    out.columns = _make_unique(list(out.columns))
-    st.sidebar.info("ℹ️ Foram aplicados sufixos (.1, .2) para nomes repetidos.")
+if len(set(map(str, out.columns))) < len(out.columns):
+    out.columns = make_unique(out.columns)
+    st.sidebar.info("ℹ️ Apliquei sufixos (.1, .2) para resolver nomes repetidos após o rename.")
 
 st.subheader(f"Ranking — {profile}")
 st.caption("Score bruto = soma(peso × z‑score). Score (0–100) = percentil do score dentro do conjunto filtrado.")
@@ -480,6 +480,7 @@ if preset_up:
         st.sidebar.success("Preset carregado (aplica manualmente as escolhas na UI).")
     except Exception as e:
         st.sidebar.error(f"Preset inválido: {e}")
+
 
 
 
