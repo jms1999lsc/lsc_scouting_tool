@@ -378,7 +378,6 @@ dfp["score"] = sum(
     for src, flag in zip(metric_slots, already_norm_flags)
     if src and src in weights  # <— ignora slots vazios
 )
-
 dfp["score_0_100"] = (dfp["score"].rank(pct=True) * 100).round(1)
 
 # ----------------------- Output (único, dedup robusto) -----------------------
@@ -402,7 +401,6 @@ for src, flag in zip(metric_slots, already_norm_flags):
         continue
     per90_name = src if (flag or is_per90_colname(src)) else f"{src}_p90"
     show_cols += [per90_name, per90_name + "_pct"]
-
 
 # dedupe da lista
 seen = set()
@@ -478,4 +476,5 @@ if preset_up:
         st.sidebar.success("Preset carregado (aplica manualmente as escolhas na UI).")
     except Exception as e:
         st.sidebar.error(f"Preset inválido: {e}")
+
 
