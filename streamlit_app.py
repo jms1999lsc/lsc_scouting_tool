@@ -304,6 +304,9 @@ for i in range(5):
     st.sidebar.caption(("Deteção sugere 'já normalizada'." if infer_norm else "Deteção sugere 'raw' → converter p/90."))
     metric_slots.append(mcol)
     already_norm_flags.append(flag)
+    # ---- PATCH: aviso se houver métricas repetidas ----
+if len(set(metric_slots)) < len(metric_slots):
+    st.sidebar.warning("⚠️ Atenção: escolheste métricas repetidas nos 5 slots — a tabela vai mostrar cada coluna apenas uma vez.")
 
 # Pesos (somam 1)
 st.sidebar.subheader("Pesos")
@@ -353,10 +356,43 @@ dfp["score"] = sum(
 # Score 0–100 (percentil do score bruto)
 dfp["score_0_100"] = (dfp["score"].rank(pct=True) * 100).round(1)
 
-# Colunas a mostrar (Nome, Equipa, Posição, Minutos, Valor/Contrato, Scores, Métricas+percentil)
+# Colunas a mostrar (Nome, Equipa, Posição, Divisão, Idade, Minutos, Valor/Contrato, Scores, Métricas+percentil)
 show_cols = [name_col]
 if team_col != "(não usar)":
     show_cols.append(team_col)
+
+show_cols.append(pos_col)
+if 'division_col' in locals() and division_col != "(não usar)":
+    show_cols.append(division_col)
+if 'age_col' in locals() and age_col != "(não usar)":
+    show_cols.append(age_col)
+show_cols.append(minutes_col)
+
+if "_market_value" in dfp.columns:
+    show_cols.append("_market_value")
+if "_contract_end" in dfp.columns:
+    show_cols.append("_contract_end")
+
+show_cols += ["score", "score_0_100"]
+
+for src, flag in zip(metric_slots, already_norm_flags):
+    per90_name = src if (flag or is_per90_colname(src)) else f"{src}_p90"
+    show_cols += [per90_name, per90_name + "_pct"]
+
+# ✅ NEW: remover duplicados preservando a 1ª ocorrência
+seen = set()
+show_cols_unique = []
+for c in show_cols:
+    if c not in seen:
+        show_cols_unique.append(c)
+        seen.add(c)
+
+out = dfp.sort_values("score", ascending=False)[show_cols_unique].reset_index(drop=True)
+out = out.rename(columns={"_market_value": "market_value", "_contract_end": "contract_end"})
+
+st.subheader(f"Ranking — {profile}")
+st.caption("Score bruto = soma(peso × z‑score). Score (0–100) = percentil do score dentro do conjunto filtrado.")
+st.dataframe(out, use_container_width=True)
 
 # posição → divisão → idade → minutos
 show_cols.append(pos_col)
@@ -423,5 +459,6 @@ if preset_up:
         st.sidebar.success("Preset carregado (aplica manualmente as escolhas na UI).")
     except Exception as e:
         st.sidebar.error(f"Preset inválido: {e}")
+
 
 
