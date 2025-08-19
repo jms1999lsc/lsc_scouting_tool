@@ -375,20 +375,41 @@ if "_contract_end" in dfp.columns:
 
 show_cols += ["score", "score_0_100"]
 
+# métricas escolhidas + percentis
 for src, flag in zip(metric_slots, already_norm_flags):
     per90_name = src if (flag or is_per90_colname(src)) else f"{src}_p90"
     show_cols += [per90_name, per90_name + "_pct"]
 
-# ✅ NEW: remover duplicados preservando a 1ª ocorrência
+# 1) remover duplicados da lista de colunas, preservando a 1ª ocorrência
 seen = set()
 show_cols_unique = []
 for c in show_cols:
     if c not in seen:
         show_cols_unique.append(c)
         seen.add(c)
+if len(show_cols_unique) < len(show_cols):
+    st.sidebar.warning("⚠️ Removi colunas duplicadas no output (métrica repetida ou mapeamento igual).")
 
+# 2) construir o DataFrame de saída
 out = dfp.sort_values("score", ascending=False)[show_cols_unique].reset_index(drop=True)
-out = out.rename(columns={"_market_value": "market_value", "_contract_end": "contract_end"})
+out = out.rename(columns={"_market_value":"market_value","_contract_end":"contract_end"})
+
+# 3) garantir nomes de colunas 100% únicos (ex.: 'Shots', 'Shots.1', 'Shots.2' se necessário)
+def _make_unique(cols):
+    seen = {}
+    new = []
+    for c in cols:
+        if c not in seen:
+            seen[c] = 0
+            new.append(c)
+        else:
+            seen[c] += 1
+            new.append(f"{c}.{seen[c]}")
+    return new
+
+if len(set(out.columns)) < len(out.columns):
+    out.columns = _make_unique(list(out.columns))
+    st.sidebar.info("ℹ️ Foram aplicados sufixos (.1, .2) para nomes repetidos.")
 
 st.subheader(f"Ranking — {profile}")
 st.caption("Score bruto = soma(peso × z‑score). Score (0–100) = percentil do score dentro do conjunto filtrado.")
@@ -459,6 +480,7 @@ if preset_up:
         st.sidebar.success("Preset carregado (aplica manualmente as escolhas na UI).")
     except Exception as e:
         st.sidebar.error(f"Preset inválido: {e}")
+
 
 
 
