@@ -178,9 +178,39 @@ contract_col = st.sidebar.selectbox(
 # ----------------------- Filtros (juntos) -----------------------
 st.sidebar.markdown("---")
 st.sidebar.subheader("Filtros")
+
+# filtro minutos
 min_minutes = st.sidebar.slider("Minutos mínimos", 0, 4500, 900, 30)
+
+# filtro idade
+if age_col != "(não usar)":
+    dfw["_age"] = pd.to_numeric(dfw[age_col], errors="coerce")
+    if dfw["_age"].notna().any():
+        a_min, a_max = int(dfw["_age"].min()), int(dfw["_age"].max())
+        age_range = st.sidebar.slider("Idade", min_value=a_min, max_value=a_max, value=(a_min, a_max))
+    else:
+        age_range = None
+else:
+    age_range = None
+
+# filtro valor de mercado
 val_range = None
+if value_col != "(não usar)":
+    dfw["_market_value"] = pd.to_numeric(dfw[value_col], errors="coerce")
+    mv_min = float(np.nanmin(dfw["_market_value"])) if np.isfinite(np.nanmin(dfw["_market_value"])) else 0.0
+    mv_max = float(np.nanmax(dfw["_market_value"])) if np.isfinite(np.nanmax(dfw["_market_value"])) else 0.0
+    val_range = st.sidebar.slider("Valor de mercado", min_value=float(mv_min), max_value=float(mv_max),
+                                  value=(float(mv_min), float(mv_max)))
+
+# filtro contrato
 d_from = d_to = None
+if contract_col != "(não usar)":
+    dfw["_contract_end"] = dfw[contract_col].apply(to_date_any)
+    if dfw["_contract_end"].notna().any():
+        dates_present = [d for d in dfw["_contract_end"] if d is not None]
+        if dates_present:
+            dmin, dmax = min(dates_present), max(dates_present)
+            d_from, d_to = st.sidebar.date_input("Fim de contrato entre", value=(dmin, dmax))
 
 # ----------------------- Preparar dataframe -----------------------
 dfw = df.copy()
@@ -479,6 +509,7 @@ if preset_up:
         st.sidebar.success("Preset carregado (aplica manualmente as escolhas na UI).")
     except Exception as e:
         st.sidebar.error(f"Preset inválido: {e}")
+
 
 
 
