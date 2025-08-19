@@ -4,8 +4,32 @@ import numpy as np
 import pandas as pd
 import streamlit as st
 
-st.set_page_config(page_title="Scouting CSV → Perfis & Ranking", layout="wide")
-st.title("Scouting — Perfis, Pesos e Ranking (auto per90 + override)")
+# ---- PASSWORD LOGIN ----
+def check_password():
+    """Password simples para proteger a app"""
+    def password_entered():
+        if st.session_state["password"] == st.secrets["password"]:
+            st.session_state["password_correct"] = True
+            del st.session_state["password"]  # apaga da memória
+        else:
+            st.session_state["password_correct"] = False
+
+    if "password_correct" not in st.session_state:
+        st.text_input("Password", type="password", on_change=password_entered, key="password")
+        return False
+    elif not st.session_state["password_correct"]:
+        st.text_input("Password", type="password", on_change=password_entered, key="password")
+        st.error("❌ Password incorreta")
+        return False
+    else:
+        return True
+
+
+if not check_password():
+    st.stop()  # bloqueia o resto da app até pwd correta
+
+st.set_page_config(page_title="Scouting LSC → Ferramenta Perfis & Ranking", layout="wide")
+st.title("Scouting LSC → Ferramenta Perfis & Ranking")
 
 # ----------------------- Helpers -----------------------
 def read_csv_flex(file_bytes):
@@ -373,3 +397,4 @@ if preset_up:
         st.sidebar.success("Preset carregado (aplica manualmente as escolhas na UI).")
     except Exception as e:
         st.sidebar.error(f"Preset inválido: {e}")
+
