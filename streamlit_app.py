@@ -367,16 +367,10 @@ for met in set(per90_cols):
     dfp[met + "_z"]  = zscore_group(dfp[met], dfp[pos_col])
     dfp[met + "_pct"] = pct_group(dfp[met], dfp[pos_col])
 
-# aplicar filtros extra
-if age_range and "_age" in dfp.columns:
-    dfp = dfp[dfp["_age"].between(age_range[0], age_range[1])]
-
 if val_range and "_market_value" in dfp.columns:
     dfp = dfp[dfp["_market_value"].between(val_range[0], val_range[1])]
-
 if (d_from and d_to) and "_contract_end" in dfp.columns:
     dfp = dfp[dfp["_contract_end"].apply(lambda x: x is not None and d_from <= x <= d_to)]
-
 
 if not len(dfp):
     st.warning("Nenhum jogador cumpre os filtros/etiquetas selecionados.")
@@ -485,5 +479,4 @@ if preset_up:
         st.sidebar.success("Preset carregado (aplica manualmente as escolhas na UI).")
     except Exception as e:
         st.sidebar.error(f"Preset inválido: {e}")
-
 
