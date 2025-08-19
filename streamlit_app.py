@@ -213,32 +213,28 @@ else:
 
 # ----------------------- Perfis & defaults -----------------------
 KEYS = {
-    "prog_passes": ["prog pass","progress pass","progressive","passes progressivos","passe progressivo"],
-    "vertical_passes": ["vertical pass","vertical","passe vertical"],
-    "first_phase": ["first phase","build","deep third","saída","constru","build-up","fase inicial"],
-    "key_passes": ["key pass","pass to shot","assist","assistência","passe chave"],
-    "final_third": ["final third","terço final","passe 3º terço","último terço"],
-    "pen_area": ["penalty area","area pass","p/ área","caixa","pen area","área"],
-    "recoveries": ["recovery","recuper","recuperações"],
-    "press_succ": ["press success","successful press","counterpress","gegenpress","pressão","pressão bem-sucedida"],
-    "interceptions": ["intercep","interceptações"],
-    "tackles_won": ["tackle won","desarme","tackles","tackles ganhos"],
-    "aerial_won": ["aerial won","header won","duelo aéreo ganho","cabeceamentos ganhos"],
-    "clearances": ["clearance","alívio","alívios"],
-    "blocks": ["block","bloqueios","remates bloqueados"],
-    "carries": ["carry","progressive run","condução","conduções"],
-    "dribbles": ["dribble","1v1","dribles","dribles bem-sucedidos"],
-    "shots": ["shot","remate","remates"],
-    "xg": ["xg","expected goals","xg total","golos esperados"],
-    "touches_box": ["touches in box","area touches","toques na área"],
-    "crosses_acc": ["cross acc","accurate cross","cruz","cruzamentos certos","cross accuracy"],
-    # --- Guarda-Redes ---
-    "gk_saves": ["save","saves","save %","save pct","% saves","saves in box",
-                 "inside box","shots saved","defesas","paradas"],
-    "gk_claims": ["claim","claims","claim accuracy","high claim","cross stopped",
-                  "crosses stopped","saídas","bolas altas"],
-    "gk_long": ["long pass","goal kick","launch","long distribution",
-                "passes longos","pontapé longo","reposições longas"],
+    "prog_passes": ["prog pass","progress pass","progressive"],
+    "vertical_passes": ["vertical pass","vertical"],
+    "first_phase": ["first phase","build","deep third","saída","constru"],
+    "key_passes": ["key pass","pass to shot","assist"],
+    "final_third": ["final third","terço final"],
+    "pen_area": ["penalty area","area pass","p/ área"],
+    "recoveries": ["recovery","recuper"],
+    "press_succ": ["press success","successful press","counterpress","gegenpress"],
+    "interceptions": ["intercep"],
+    "tackles_won": ["tackle won","desarme"],
+    "aerial_won": ["aerial won","header won"],
+    "clearances": ["clearance","alívio"],
+    "blocks": ["block"],
+    "carries": ["carry","progressive run"],
+    "dribbles": ["dribble","1v1"],
+    "shots": ["shot","remate"],
+    "xg": ["xg","expected goals"],
+    "touches_box": ["touches in box","area touches"],
+    "crosses_acc": ["cross acc","accurate cross","cruz"],
+    "gk_saves": ["save"],
+    "gk_claims": ["claim","cross stopped"],
+    "gk_long": ["long pass","goal kick"],
 }
 
 PROFILES = {
@@ -272,13 +268,14 @@ def suggest_defaults(profile_key_list, candidates):
         pick = None
         for c in candidates:
             if any(k in clower[c] for k in kws):
-                pick = c
-                break
+                pick = c; break
         if pick and pick not in chosen:
             chosen.append(pick)
-
-    # Agora não inventa mais colunas — devolve só os matches encontrados
-    return chosen
+    for c in candidates:
+        if len(chosen) >= 5: break
+        if c not in chosen:
+            chosen.append(c)
+    return chosen[:5]
 
 # ----------------------- Sidebar: Perfil / Etiquetas / Métricas / Pesos -----------------------
 st.sidebar.markdown("---")
@@ -291,6 +288,7 @@ profile_labels = st.sidebar.multiselect(
     default=unique_pos_vals[:1]
 )
 
+# Métricas (5) + override "já é per90/%"
 # Métricas (5) + override "já é per90/%"
 st.sidebar.subheader("Métricas (5)")
 defaults = suggest_defaults(PROFILES[profile], metric_candidates)
@@ -337,22 +335,13 @@ chosen_metrics = [m for m in metric_slots if m]
 if len(set(chosen_metrics)) < len(chosen_metrics):
     st.sidebar.warning("⚠️ Tens métricas repetidas nos 5 slots — considera escolher 5 diferentes.")
 
-
 # Pesos (somam 1)
 st.sidebar.subheader("Pesos")
-
 weights = {}
-remaining = 1.0
-
-for i, met in enumerate([m for m in metric_slots if m]):  # só métricas escolhidas
-    max_val = min(1.0, remaining) if i < len(metric_slots) - 1 else remaining
-    w = st.sidebar.slider(met, 0.0, max_val, max_val if max_val < 1.0 else 0.2, 0.05)
-    weights[met] = w
-    remaining -= w
-
-# Mostrar aviso se não fechou exatamente em 1
-if abs(sum(weights.values()) - 1.0) > 1e-6:
-    st.sidebar.warning("⚠️ A soma dos pesos ainda não é 1. Ajusta os sliders.")
+for met in metric_slots:
+    if met:
+        weights[met] = st.sidebar.slider(met, 0.0, 1.0, 0.2, 0.05)
+weights = normalize_weights(weights)
 
 # ----------------------- Preparar colunas per90 conforme flags -----------------------
 per90_cols = []
@@ -373,7 +362,7 @@ mask_pos = dfw[pos_col].astype(str).isin(profile_labels) if profile_labels else 
 dfp = dfw[mask_pos].copy()
 
 for met in set(per90_cols):
-    dfp[met + "_z"] = zscore_group(dfp[met], dfp[pos_col])
+    dfp[met + "_z"]  = zscore_group(dfp[met], dfp[pos_col])
     dfp[met + "_pct"] = pct_group(dfp[met], dfp[pos_col])
 
 if val_range and "_market_value" in dfp.columns:
@@ -385,12 +374,11 @@ if not len(dfp):
     st.warning("Nenhum jogador cumpre os filtros/etiquetas selecionados.")
     st.stop()
 
-dfp["score"] = sum(
+ddfp["score"] = sum(
     weights[src] * dfp[(src if (flag or is_per90_colname(src)) else f"{src}_p90") + "_z"]
     for src, flag in zip(metric_slots, already_norm_flags)
     if src and src in weights  # <— ignora slots vazios
 )
-
 dfp["score_0_100"] = (dfp["score"].rank(pct=True) * 100).round(1)
 
 # ----------------------- Output (único, dedup robusto) -----------------------
@@ -489,6 +477,3 @@ if preset_up:
         st.sidebar.success("Preset carregado (aplica manualmente as escolhas na UI).")
     except Exception as e:
         st.sidebar.error(f"Preset inválido: {e}")
-
-
-
