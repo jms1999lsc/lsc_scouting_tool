@@ -143,6 +143,8 @@ if show_preview:
 # ----------------------- Mapeamento mínimo -----------------------
 name_col    = guess(["name","player","jogador"])
 team_col_g  = guess(["team","equipa","clube"], default=None)
+division_col_g = guess(["division","league","competition","competição","liga"], default=None)
+age_col_g      = guess(["age","idade"], default=None)
 pos_col     = guess(["pos","posição","position","role"])
 minutes_col = guess(["min","minutes","mins","minutos"])
 value_col   = guess(["market","valor","value","valormercado"], default=None)
@@ -152,6 +154,14 @@ st.sidebar.header("Mapeamento")
 name_col    = st.sidebar.selectbox("Nome do jogador", options=df.columns, index=list(df.columns).index(name_col))
 team_col    = st.sidebar.selectbox("Equipa (opcional)", options=["(não usar)"] + list(df.columns),
                                    index=(0 if team_col_g is None else list(df.columns).index(team_col_g)+1))
+division_col = st.sidebar.selectbox(
+    "Divisão/Liga (opcional)", options=["(não usar)"] + list(df.columns),
+    index=(0 if division_col_g is None else list(df.columns).index(division_col_g)+1)
+)
+age_col = st.sidebar.selectbox(
+    "Idade (opcional)", options=["(não usar)"] + list(df.columns),
+    index=(0 if age_col_g is None else list(df.columns).index(age_col_g)+1)
+)
 pos_col     = st.sidebar.selectbox("Posição (texto)", options=df.columns, index=list(df.columns).index(pos_col))
 minutes_col = st.sidebar.selectbox("Minutos", options=df.columns, index=list(df.columns).index(minutes_col))
 value_col = st.sidebar.selectbox(
@@ -345,11 +355,27 @@ dfp["score_0_100"] = (dfp["score"].rank(pct=True) * 100).round(1)
 
 # Colunas a mostrar (Nome, Equipa, Posição, Minutos, Valor/Contrato, Scores, Métricas+percentil)
 show_cols = [name_col]
-if team_col != "(não usar)": show_cols.append(team_col)
-show_cols += [pos_col, minutes_col]
-if "_market_value" in dfp.columns: show_cols.append("_market_value")
-if "_contract_end" in dfp.columns: show_cols.append("_contract_end")
+if team_col != "(não usar)":
+    show_cols.append(team_col)
+
+# posição → divisão → idade → minutos
+show_cols.append(pos_col)
+if 'division_col' in locals() and division_col != "(não usar)":
+    show_cols.append(division_col)
+if 'age_col' in locals() and age_col != "(não usar)":
+    show_cols.append(age_col)
+show_cols.append(minutes_col)
+
+# extras (valor/contrato)
+if "_market_value" in dfp.columns:
+    show_cols.append("_market_value")
+if "_contract_end" in dfp.columns:
+    show_cols.append("_contract_end")
+
+# scores
 show_cols += ["score", "score_0_100"]
+
+# métricas escolhidas + percentis
 for src, flag in zip(metric_slots, already_norm_flags):
     per90_name = src if (flag or is_per90_colname(src)) else f"{src}_p90"
     show_cols += [per90_name, per90_name+"_pct"]
@@ -397,4 +423,5 @@ if preset_up:
         st.sidebar.success("Preset carregado (aplica manualmente as escolhas na UI).")
     except Exception as e:
         st.sidebar.error(f"Preset inválido: {e}")
+
 
