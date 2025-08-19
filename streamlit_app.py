@@ -340,11 +340,19 @@ if len(set(chosen_metrics)) < len(chosen_metrics):
 
 # Pesos (somam 1)
 st.sidebar.subheader("Pesos")
+
 weights = {}
-for met in metric_slots:
-    if met:
-        weights[met] = st.sidebar.slider(met, 0.0, 1.0, 0.2, 0.05)
-weights = normalize_weights(weights)
+remaining = 1.0
+
+for i, met in enumerate([m for m in metric_slots if m]):  # só métricas escolhidas
+    max_val = min(1.0, remaining) if i < len(metric_slots) - 1 else remaining
+    w = st.sidebar.slider(met, 0.0, max_val, max_val if max_val < 1.0 else 0.2, 0.05)
+    weights[met] = w
+    remaining -= w
+
+# Mostrar aviso se não fechou exatamente em 1
+if abs(sum(weights.values()) - 1.0) > 1e-6:
+    st.sidebar.warning("⚠️ A soma dos pesos ainda não é 1. Ajusta os sliders.")
 
 # ----------------------- Preparar colunas per90 conforme flags -----------------------
 per90_cols = []
@@ -481,5 +489,6 @@ if preset_up:
         st.sidebar.success("Preset carregado (aplica manualmente as escolhas na UI).")
     except Exception as e:
         st.sidebar.error(f"Preset inválido: {e}")
+
 
 
