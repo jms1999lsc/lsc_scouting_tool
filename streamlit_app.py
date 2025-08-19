@@ -122,6 +122,19 @@ def infer_already_normalized(series: pd.Series, minutes: pd.Series) -> bool:
     # com pouca amostra, usa nome da coluna ou assume não normalizada
     return is_per90_colname(series.name)
 
+def make_unique(columns):
+    """Garante nomes de colunas únicos: repete com sufixos .1, .2, ..."""
+    counts = {}
+    new = []
+    for c in map(str, columns):
+        if c in counts:
+            counts[c] += 1
+            new.append(f"{c}.{counts[c]}")
+        else:
+            counts[c] = 0
+            new.append(c)
+    return new
+
 # ----------------------- Upload -----------------------
 uploaded = st.file_uploader("Carrega o CSV", type=["csv"])
 if uploaded is None:
@@ -133,6 +146,9 @@ df = read_csv_flex(content)
 if df is None:
     st.error("Não consegui ler o CSV (verifica o separador).")
     st.stop()
+    
+# Força nomes de colunas únicos no CSV carregado
+df.columns = make_unique(df.columns)
 
 # Pré‑visualização opcional
 show_preview = st.sidebar.checkbox("Mostrar pré‑visualização do CSV", value=False)
@@ -357,7 +373,6 @@ show_cols = [name_col]
 if team_col != "(não usar)":
     show_cols.append(team_col)
 
-# posição → divisão → idade → minutos
 show_cols.append(pos_col)
 if 'division_col' in locals() and division_col != "(não usar)":
     show_cols.append(division_col)
@@ -365,22 +380,34 @@ if 'age_col' in locals() and age_col != "(não usar)":
     show_cols.append(age_col)
 show_cols.append(minutes_col)
 
-# extras (valor/contrato)
 if "_market_value" in dfp.columns:
     show_cols.append("_market_value")
 if "_contract_end" in dfp.columns:
     show_cols.append("_contract_end")
 
-# scores
 show_cols += ["score", "score_0_100"]
 
 # métricas escolhidas + percentis
 for src, flag in zip(metric_slots, already_norm_flags):
     per90_name = src if (flag or is_per90_colname(src)) else f"{src}_p90"
-    show_cols += [per90_name, per90_name+"_pct"]
+    show_cols += [per90_name, per90_name + "_pct"]
 
-out = dfp.sort_values("score", ascending=False)[show_cols].reset_index(drop=True)
-out = out.rename(columns={"_market_value":"market_value","_contract_end":"contract_end"})
+# 1) remover duplicados na lista (preserva a 1ª ocorrência)
+seen = set()
+show_cols_unique = []
+for c in show_cols:
+    if c not in seen:
+        show_cols_unique.append(c)
+        seen.add(c)
+if len(show_cols_unique) < len(show_cols):
+    st.sidebar.warning("⚠️ Removi colunas duplicadas na seleção (métrica repetida ou mapeamento igual).")
+
+# 2) construir DF e renomear market/contract primeiro
+out = dfp.sort_values("score", ascending=False)[show_cols_unique].reset_index(drop=True)
+out = out.rename(columns={"_market_value": "market_value", "_contract_end": "contract_end"})
+
+# 3) unicidade final absoluta (mesmo após renames)
+out.columns = make_unique(out.columns)
 
 st.subheader(f"Ranking — {profile}")
 st.caption("Score bruto = soma(peso × z‑score). Score (0–100) = percentil do score dentro do conjunto filtrado.")
@@ -451,6 +478,7 @@ if preset_up:
         st.sidebar.success("Preset carregado (aplica manualmente as escolhas na UI).")
     except Exception as e:
         st.sidebar.error(f"Preset inválido: {e}")
+
 
 
 
