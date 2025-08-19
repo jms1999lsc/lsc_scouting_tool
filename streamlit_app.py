@@ -387,27 +387,47 @@ if "_contract_end" in dfp.columns:
 
 show_cols += ["score", "score_0_100"]
 
-# métricas escolhidas + percentis
+# Métricas escolhidas + percentis
 for src, flag in zip(metric_slots, already_norm_flags):
     per90_name = src if (flag or is_per90_colname(src)) else f"{src}_p90"
     show_cols += [per90_name, per90_name + "_pct"]
 
-# 1) remover duplicados na lista (preserva a 1ª ocorrência)
+# 1) Remover duplicados na lista (preserva a 1ª ocorrência)
 seen = set()
-show_cols_unique = []
+ordered_unique = []
 for c in show_cols:
     if c not in seen:
-        show_cols_unique.append(c)
+        ordered_unique.append(c)
         seen.add(c)
-if len(show_cols_unique) < len(show_cols):
-    st.sidebar.warning("⚠️ Removi colunas duplicadas na seleção (métrica repetida ou mapeamento igual).")
 
-# 2) construir DF e renomear market/contract primeiro
-out = dfp.sort_values("score", ascending=False)[show_cols_unique].reset_index(drop=True)
-out = out.rename(columns={"_market_value": "market_value", "_contract_end": "contract_end"})
+# 2) Construir a tabela de saída garantindo nomes únicos na CRIAÇÃO
+from collections import defaultdict
+series_list = []
+name_counts = defaultdict(int)
 
-# 3) unicidade final absoluta (mesmo após renames)
-out.columns = make_unique(out.columns)
+def target_name(src_name: str) -> str:
+    # aplicar renames aqui para evitar colisões posteriores
+    if src_name == "_market_value":
+        return "market_value"
+    if src_name == "_contract_end":
+        return "contract_end"
+    return str(src_name)
+
+for src in ordered_unique:
+    if src not in dfp.columns:
+        continue  # segurança: se mapeaste algo que não existe
+    tgt = target_name(src)
+    # garantir unicidade
+    if tgt in [s.name for s in series_list]:
+        name_counts[tgt] += 1
+        tgt = f"{tgt}.{name_counts[tgt]}"
+    else:
+        name_counts[tgt] = 0
+    s = dfp[src].copy()
+    s.name = tgt
+    series_list.append(s)
+
+out = pd.concat(series_list, axis=1).sort_values("score", ascending=False).reset_index(drop=True)
 
 st.subheader(f"Ranking — {profile}")
 st.caption("Score bruto = soma(peso × z‑score). Score (0–100) = percentil do score dentro do conjunto filtrado.")
@@ -478,12 +498,6 @@ if preset_up:
         st.sidebar.success("Preset carregado (aplica manualmente as escolhas na UI).")
     except Exception as e:
         st.sidebar.error(f"Preset inválido: {e}")
-
-
-
-
-
-
 
 
 
