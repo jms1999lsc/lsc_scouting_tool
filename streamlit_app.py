@@ -213,28 +213,32 @@ else:
 
 # ----------------------- Perfis & defaults -----------------------
 KEYS = {
-    "prog_passes": ["prog pass","progress pass","progressive"],
-    "vertical_passes": ["vertical pass","vertical"],
-    "first_phase": ["first phase","build","deep third","saída","constru"],
-    "key_passes": ["key pass","pass to shot","assist"],
-    "final_third": ["final third","terço final"],
-    "pen_area": ["penalty area","area pass","p/ área"],
-    "recoveries": ["recovery","recuper"],
-    "press_succ": ["press success","successful press","counterpress","gegenpress"],
-    "interceptions": ["intercep"],
-    "tackles_won": ["tackle won","desarme"],
-    "aerial_won": ["aerial won","header won"],
-    "clearances": ["clearance","alívio"],
-    "blocks": ["block"],
-    "carries": ["carry","progressive run"],
-    "dribbles": ["dribble","1v1"],
-    "shots": ["shot","remate"],
-    "xg": ["xg","expected goals"],
-    "touches_box": ["touches in box","area touches"],
-    "crosses_acc": ["cross acc","accurate cross","cruz"],
-    "gk_saves": ["save"],
-    "gk_claims": ["claim","cross stopped"],
-    "gk_long": ["long pass","goal kick"],
+    "prog_passes": ["prog pass","progress pass","progressive","passes progressivos","passe progressivo"],
+    "vertical_passes": ["vertical pass","vertical","passe vertical"],
+    "first_phase": ["first phase","build","deep third","saída","constru","build-up","fase inicial"],
+    "key_passes": ["key pass","pass to shot","assist","assistência","passe chave"],
+    "final_third": ["final third","terço final","passe 3º terço","último terço"],
+    "pen_area": ["penalty area","area pass","p/ área","caixa","pen area","área"],
+    "recoveries": ["recovery","recuper","recuperações"],
+    "press_succ": ["press success","successful press","counterpress","gegenpress","pressão","pressão bem-sucedida"],
+    "interceptions": ["intercep","interceptações"],
+    "tackles_won": ["tackle won","desarme","tackles","tackles ganhos"],
+    "aerial_won": ["aerial won","header won","duelo aéreo ganho","cabeceamentos ganhos"],
+    "clearances": ["clearance","alívio","alívios"],
+    "blocks": ["block","bloqueios","remates bloqueados"],
+    "carries": ["carry","progressive run","condução","conduções"],
+    "dribbles": ["dribble","1v1","dribles","dribles bem-sucedidos"],
+    "shots": ["shot","remate","remates"],
+    "xg": ["xg","expected goals","xg total","golos esperados"],
+    "touches_box": ["touches in box","area touches","toques na área"],
+    "crosses_acc": ["cross acc","accurate cross","cruz","cruzamentos certos","cross accuracy"],
+    # --- Guarda-Redes ---
+    "gk_saves": ["save","saves","save %","save pct","% saves","saves in box",
+                 "inside box","shots saved","defesas","paradas"],
+    "gk_claims": ["claim","claims","claim accuracy","high claim","cross stopped",
+                  "crosses stopped","saídas","bolas altas"],
+    "gk_long": ["long pass","goal kick","launch","long distribution",
+                "passes longos","pontapé longo","reposições longas"],
 }
 
 PROFILES = {
@@ -268,14 +272,13 @@ def suggest_defaults(profile_key_list, candidates):
         pick = None
         for c in candidates:
             if any(k in clower[c] for k in kws):
-                pick = c; break
+                pick = c
+                break
         if pick and pick not in chosen:
             chosen.append(pick)
-    for c in candidates:
-        if len(chosen) >= 5: break
-        if c not in chosen:
-            chosen.append(c)
-    return chosen[:5]
+
+    # Agora não inventa mais colunas — devolve só os matches encontrados
+    return chosen
 
 # ----------------------- Sidebar: Perfil / Etiquetas / Métricas / Pesos -----------------------
 st.sidebar.markdown("---")
@@ -444,3 +447,4 @@ if preset_up:
         st.sidebar.success("Preset carregado (aplica manualmente as escolhas na UI).")
     except Exception as e:
         st.sidebar.error(f"Preset inválido: {e}")
+
