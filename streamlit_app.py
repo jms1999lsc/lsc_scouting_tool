@@ -1,5 +1,6 @@
 import io, json
 from datetime import date
+from collections import defaultdict
 import numpy as np
 import pandas as pd
 import streamlit as st
@@ -24,9 +25,8 @@ def check_password():
     else:
         return True
 
-
 if not check_password():
-    st.stop()  # bloqueia o resto da app até pwd correta
+    st.stop()
 
 st.set_page_config(page_title="Scouting LSC → Ferramenta Perfis & Ranking", layout="wide")
 st.title("Scouting LSC → Ferramenta Perfis & Ranking")
@@ -65,16 +65,12 @@ def to_date_any(x):
     if pd.isna(x):
         return None
     s = str(x).strip().strip('"').strip("'")
-
-    # Tenta parse genérico (com/sem dayfirst)
     for dayfirst in (True, False):
         try:
             d = pd.to_datetime(s, dayfirst=dayfirst, errors="raise")
             return d.date()
         except Exception:
             pass
-
-    # Formatos sem dia -> usar fim do mês
     for fmt in ("%b %y", "%b %Y", "%m/%Y", "%Y-%m"):  # ex.: Jun 29, Jun 2029, 06/2029, 2029-06
         try:
             d = pd.to_datetime(s, format=fmt)
@@ -82,7 +78,6 @@ def to_date_any(x):
             return d.date()
         except Exception:
             pass
-
     return None
 
 def normalize_weights(d):
@@ -105,21 +100,16 @@ def infer_already_normalized(series: pd.Series, minutes: pd.Series) -> bool:
     s = pd.to_numeric(series, errors="coerce")
     m = pd.to_numeric(minutes, errors="coerce")
     s = s.replace([np.inf, -np.inf], np.nan)
-
     valid = s.notna() & m.notna()
     s2, m2 = s[valid], m[valid]
     if len(s2) >= 20:
-        # detetar taxas
         q1, q99 = s2.quantile(0.01), s2.quantile(0.99)
         if 0 <= q1 and q99 <= 1.0:
             return True
         if 0 <= q1 and q99 <= 100.0:
-            # muitos percentuais vêm em 0–100
             return True
-        # correlação com minutos
         r = np.corrcoef(s2, m2)[0,1]
         return abs(r) < 0.35
-    # com pouca amostra, usa nome da coluna ou assume não normalizada
     return is_per90_colname(series.name)
 
 def make_unique(columns):
@@ -146,7 +136,7 @@ df = read_csv_flex(content)
 if df is None:
     st.error("Não consegui ler o CSV (verifica o separador).")
     st.stop()
-    
+
 # Força nomes de colunas únicos no CSV carregado
 df.columns = make_unique(df.columns)
 
@@ -157,23 +147,23 @@ if show_preview:
     st.dataframe(df.head(20), use_container_width=True)
 
 # ----------------------- Mapeamento mínimo -----------------------
-name_col    = guess(["name","player","jogador"])
-team_col_g  = guess(["team","equipa","clube"], default=None)
+name_col       = guess(["name","player","jogador"])
+team_col_g     = guess(["team","equipa","clube"], default=None)
 division_col_g = guess(["division","league","competition","competição","liga","season"], default=None)
 age_col_g      = guess(["age","idade"], default=None)
-pos_col     = guess(["pos","posição","position","role"])
-minutes_col = guess(["min","minutes","mins","minutos"])
-value_col   = guess(["market","valor","value","valormercado"], default=None)
-contract_col= guess(["contract","contrato","expiry","end"], default=None)
+pos_col        = guess(["pos","posição","position","role"])
+minutes_col    = guess(["min","minutes","mins","minutos"])
+value_col      = guess(["market","valor","value","valormercado"], default=None)
+contract_col   = guess(["contract","contrato","expiry","end"], default=None)
 
 st.sidebar.header("Mapeamento")
 name_col    = st.sidebar.selectbox("Nome do jogador", options=df.columns, index=list(df.columns).index(name_col))
 team_col    = st.sidebar.selectbox("Equipa (opcional)", options=["(não usar)"] + list(df.columns),
                                    index=(0 if team_col_g is None else list(df.columns).index(team_col_g)+1))
 division_col = st.sidebar.selectbox("Divisão/Liga (opcional)", options=["(não usar)"] + list(df.columns),
-                                   index=(0 if division_col_g is None else list(df.columns).index(division_col_g)+1))
-age_col = st.sidebar.selectbox("Idade (opcional)", options=["(não usar)"] + list(df.columns),
-                               index=(0 if age_col_g is None else list(df.columns).index(age_col_g)+1))
+                                    index=(0 if division_col_g is None else list(df.columns).index(division_col_g)+1))
+age_col      = st.sidebar.selectbox("Idade (opcional)", options=["(não usar)"] + list(df.columns),
+                                    index=(0 if age_col_g is None else list(df.columns).index(age_col_g)+1))
 pos_col     = st.sidebar.selectbox("Posição (texto)", options=df.columns, index=list(df.columns).index(pos_col))
 minutes_col = st.sidebar.selectbox("Minutos", options=df.columns, index=list(df.columns).index(minutes_col))
 value_col = st.sidebar.selectbox(
@@ -309,16 +299,14 @@ for i in range(5):
         index=(metric_candidates.index(defaults[i]) if defaults and defaults[i] in metric_candidates else 0),
         key=f"metric_sel_{i}"
     )
-    # inferir automaticamente se já é per90/% (podes corrigir no checkbox)
     infer_norm = infer_already_normalized(dfw[mcol], dfw[minutes_col])
     flag = st.sidebar.checkbox("Já é per90/percentual (não converter)", value=bool(infer_norm), key=f"metric_norm_{i}")
-    # mostrar dica curta
     st.sidebar.caption(("Deteção sugere 'já normalizada'." if infer_norm else "Deteção sugere 'raw' → converter p/90."))
     metric_slots.append(mcol)
     already_norm_flags.append(flag)
-    # ---- PATCH: aviso se houver métricas repetidas ----
+
 if len(set(metric_slots)) < len(metric_slots):
-    st.sidebar.warning("⚠️ Atenção: escolheste métricas repetidas nos 5 slots — a tabela vai mostrar cada coluna apenas uma vez.")
+    st.sidebar.warning("⚠️ Atenção: escolheste métricas repetidas nos 5 slots — a tabela mostrará cada uma só uma vez.")
 
 # Pesos (somam 1)
 st.sidebar.subheader("Pesos")
@@ -331,7 +319,6 @@ weights = normalize_weights(weights)
 per90_cols = []
 for col, is_norm in zip(metric_slots, already_norm_flags):
     if is_norm or is_per90_colname(col):
-        # usar tal como está (garantir numérico)
         dfw[col] = pd.to_numeric(dfw[col], errors="coerce").fillna(0)
         per90_cols.append(col)
     else:
@@ -344,12 +331,10 @@ for col, is_norm in zip(metric_slots, already_norm_flags):
 mask_pos = dfw[pos_col].astype(str).isin(profile_labels) if profile_labels else pd.Series(False, index=dfw.index)
 dfp = dfw[mask_pos].copy()
 
-# z-score e percentis por posição
 for met in set(per90_cols):
     dfp[met + "_z"] = zscore_group(dfp[met], dfp[pos_col])
     dfp[met + "_pct"] = pct_group(dfp[met], dfp[pos_col])
 
-# aplicar filtros extra
 if val_range and "_market_value" in dfp.columns:
     dfp = dfp[dfp["_market_value"].between(val_range[0], val_range[1])]
 if (d_from and d_to) and "_contract_end" in dfp.columns:
@@ -359,40 +344,33 @@ if not len(dfp):
     st.warning("Nenhum jogador cumpre os filtros/etiquetas selecionados.")
     st.stop()
 
-# Score bruto (soma ponderada dos z-scores)
 dfp["score"] = sum(
     weights[src] * dfp[(src if (flag or is_per90_colname(src)) else f"{src}_p90") + "_z"]
     for src, flag in zip(metric_slots, already_norm_flags)
 )
-
-# Score 0–100 (percentil do score bruto)
 dfp["score_0_100"] = (dfp["score"].rank(pct=True) * 100).round(1)
 
-# Colunas a mostrar (Nome, Equipa, Posição, Divisão, Idade, Minutos, Valor/Contrato, Scores, Métricas+percentil)
+# ----------------------- Output (único, dedup robusto) -----------------------
+# Ordem base: Nome, Equipa, Posição, Divisão, Idade, Minutos, extras, Scores, Métricas(+pct)
 show_cols = [name_col]
 if team_col != "(não usar)":
     show_cols.append(team_col)
-
 show_cols.append(pos_col)
-if 'division_col' in locals() and division_col != "(não usar)":
+if division_col != "(não usar)":
     show_cols.append(division_col)
-if 'age_col' in locals() and age_col != "(não usar)":
+if age_col != "(não usar)":
     show_cols.append(age_col)
 show_cols.append(minutes_col)
 
-if "_market_value" in dfp.columns:
-    show_cols.append("_market_value")
-if "_contract_end" in dfp.columns:
-    show_cols.append("_contract_end")
-
+if "_market_value" in dfp.columns: show_cols.append("_market_value")
+if "_contract_end" in dfp.columns: show_cols.append("_contract_end")
 show_cols += ["score", "score_0_100"]
 
-# Métricas escolhidas + percentis
 for src, flag in zip(metric_slots, already_norm_flags):
     per90_name = src if (flag or is_per90_colname(src)) else f"{src}_p90"
     show_cols += [per90_name, per90_name + "_pct"]
 
-# 1) Remover duplicados na lista (preserva a 1ª ocorrência)
+# dedupe da lista
 seen = set()
 ordered_unique = []
 for c in show_cols:
@@ -400,25 +378,21 @@ for c in show_cols:
         ordered_unique.append(c)
         seen.add(c)
 
-# 2) Construir a tabela de saída garantindo nomes únicos na CRIAÇÃO
-from collections import defaultdict
+# construir coluna-a-coluna com nomes finais únicos (aplicando renames de _market/_contract)
 series_list = []
 name_counts = defaultdict(int)
 
 def target_name(src_name: str) -> str:
-    # aplicar renames aqui para evitar colisões posteriores
-    if src_name == "_market_value":
-        return "market_value"
-    if src_name == "_contract_end":
-        return "contract_end"
+    if src_name == "_market_value": return "market_value"
+    if src_name == "_contract_end": return "contract_end"
     return str(src_name)
 
 for src in ordered_unique:
     if src not in dfp.columns:
-        continue  # segurança: se mapeaste algo que não existe
+        continue
     tgt = target_name(src)
-    # garantir unicidade
-    if tgt in [s.name for s in series_list]:
+    existing = [s.name for s in series_list]
+    if tgt in existing:
         name_counts[tgt] += 1
         tgt = f"{tgt}.{name_counts[tgt]}"
     else:
@@ -429,40 +403,14 @@ for src in ordered_unique:
 
 out = pd.concat(series_list, axis=1).sort_values("score", ascending=False).reset_index(drop=True)
 
-st.subheader(f"Ranking — {profile}")
-st.caption("Score bruto = soma(peso × z‑score). Score (0–100) = percentil do score dentro do conjunto filtrado.")
-st.dataframe(out, use_container_width=True)
-
-# posição → divisão → idade → minutos
-show_cols.append(pos_col)
-if 'division_col' in locals() and division_col != "(não usar)":
-    show_cols.append(division_col)
-if 'age_col' in locals() and age_col != "(não usar)":
-    show_cols.append(age_col)
-show_cols.append(minutes_col)
-
-# extras (valor/contrato)
-if "_market_value" in dfp.columns:
-    show_cols.append("_market_value")
-if "_contract_end" in dfp.columns:
-    show_cols.append("_contract_end")
-
-# scores
-show_cols += ["score", "score_0_100"]
-
-# métricas escolhidas + percentis
-for src, flag in zip(metric_slots, already_norm_flags):
-    per90_name = src if (flag or is_per90_colname(src)) else f"{src}_p90"
-    show_cols += [per90_name, per90_name+"_pct"]
-
-out = dfp.sort_values("score", ascending=False)[show_cols].reset_index(drop=True)
-out = out.rename(columns={"_market_value":"market_value","_contract_end":"contract_end"})
+# unicidade final por segurança
+out.columns = make_unique(out.columns)
 
 st.subheader(f"Ranking — {profile}")
 st.caption("Score bruto = soma(peso × z‑score). Score (0–100) = percentil do score dentro do conjunto filtrado.")
 st.dataframe(out, use_container_width=True)
 
-# Exportações
+# ----------------------- Exportações -----------------------
 csv_bytes = out.to_csv(index=False).encode("utf-8")
 st.download_button("⬇️ Exportar CSV", data=csv_bytes, file_name=f"ranking_{profile}.csv", mime="text/csv")
 
@@ -480,14 +428,12 @@ except Exception:
 st.sidebar.markdown("---")
 st.sidebar.subheader("Presets")
 preset = {
-    "name_col": name_col, "team_col": team_col, "pos_col": pos_col, "minutes_col": minutes_col,
+    "name_col": name_col, "team_col": team_col, "division_col": division_col, "age_col": age_col,
+    "pos_col": pos_col, "minutes_col": minutes_col,
     "value_col": value_col, "contract_col": contract_col,
-    "profile": profile,
-    "profile_labels": profile_labels,
-    "metric_slots": metric_slots,
-    "already_norm_flags": already_norm_flags,
-    "weights": weights,
-    "min_minutes": int(min_minutes),
+    "profile": profile, "profile_labels": profile_labels,
+    "metric_slots": metric_slots, "already_norm_flags": already_norm_flags,
+    "weights": weights, "min_minutes": int(min_minutes),
 }
 st.sidebar.download_button("💾 Guardar preset", data=json.dumps(preset, ensure_ascii=False).encode("utf-8"),
                            file_name=f"preset_{profile}.json", mime="application/json")
@@ -498,6 +444,3 @@ if preset_up:
         st.sidebar.success("Preset carregado (aplica manualmente as escolhas na UI).")
     except Exception as e:
         st.sidebar.error(f"Preset inválido: {e}")
-
-
-
