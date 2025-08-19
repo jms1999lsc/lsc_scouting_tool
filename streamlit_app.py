@@ -289,65 +289,35 @@ profile_labels = st.sidebar.multiselect(
 )
 
 # Métricas (5) + override "já é per90/%"
-# Métricas (5) + override "já é per90/%"
 st.sidebar.subheader("Métricas (5)")
 defaults = suggest_defaults(PROFILES[profile], metric_candidates)
-
-PLACEHOLDER = "(escolher métrica)"
 metric_slots, already_norm_flags = [], []
-
 for i in range(5):
-    options = [PLACEHOLDER] + (metric_candidates if metric_candidates else [])
-    # índice: se houver default válido, usa-o; senão fica no placeholder
-    if i < len(defaults) and defaults[i] in metric_candidates:
-        idx = 1 + metric_candidates.index(defaults[i])
-    else:
-        idx = 0
-
     mcol = st.sidebar.selectbox(
         f"Métrica {i+1}",
-        options=options,
-        index=idx,
+        options=metric_candidates if metric_candidates else [""],
+        index=(metric_candidates.index(defaults[i]) if defaults and defaults[i] in metric_candidates else 0),
         key=f"metric_sel_{i}"
     )
-
-    if mcol == PLACEHOLDER:
-        # slot vazio (utilizador ainda não escolheu) → não cria checkbox
-        st.sidebar.caption("Escolhe uma métrica para este slot.")
-        metric_slots.append(None)
-        already_norm_flags.append(False)
-        continue
-
-    # inferir automaticamente se já é per90/% (podes corrigir no checkbox)
     infer_norm = infer_already_normalized(dfw[mcol], dfw[minutes_col])
-    flag = st.sidebar.checkbox(
-        "Já é per90/percentual (não converter)",
-        value=bool(infer_norm),
-        key=f"metric_norm_{i}"
-    )
-    st.sidebar.caption("Deteção sugere 'já normalizada'." if infer_norm else "Deteção sugere 'raw' → converter p/90.")
-
+    flag = st.sidebar.checkbox("Já é per90/percentual (não converter)", value=bool(infer_norm), key=f"metric_norm_{i}")
+    st.sidebar.caption(("Deteção sugere 'já normalizada'." if infer_norm else "Deteção sugere 'raw' → converter p/90."))
     metric_slots.append(mcol)
     already_norm_flags.append(flag)
 
-# Aviso de repetidas (ignora slots vazios)
-chosen_metrics = [m for m in metric_slots if m]
-if len(set(chosen_metrics)) < len(chosen_metrics):
-    st.sidebar.warning("⚠️ Tens métricas repetidas nos 5 slots — considera escolher 5 diferentes.")
+if len(set(metric_slots)) < len(metric_slots):
+    st.sidebar.warning("⚠️ Atenção: escolheste métricas repetidas nos 5 slots — a tabela mostrará cada uma só uma vez.")
 
 # Pesos (somam 1)
 st.sidebar.subheader("Pesos")
 weights = {}
 for met in metric_slots:
-    if met:
-        weights[met] = st.sidebar.slider(met, 0.0, 1.0, 0.2, 0.05)
+    weights[met] = st.sidebar.slider(met, 0.0, 1.0, 0.2, 0.05)
 weights = normalize_weights(weights)
 
 # ----------------------- Preparar colunas per90 conforme flags -----------------------
 per90_cols = []
 for col, is_norm in zip(metric_slots, already_norm_flags):
-    if not col:
-        continue
     if is_norm or is_per90_colname(col):
         dfw[col] = pd.to_numeric(dfw[col], errors="coerce").fillna(0)
         per90_cols.append(col)
@@ -362,7 +332,7 @@ mask_pos = dfw[pos_col].astype(str).isin(profile_labels) if profile_labels else 
 dfp = dfw[mask_pos].copy()
 
 for met in set(per90_cols):
-    dfp[met + "_z"]  = zscore_group(dfp[met], dfp[pos_col])
+    dfp[met + "_z"] = zscore_group(dfp[met], dfp[pos_col])
     dfp[met + "_pct"] = pct_group(dfp[met], dfp[pos_col])
 
 if val_range and "_market_value" in dfp.columns:
@@ -374,10 +344,9 @@ if not len(dfp):
     st.warning("Nenhum jogador cumpre os filtros/etiquetas selecionados.")
     st.stop()
 
-ddfp["score"] = sum(
+dfp["score"] = sum(
     weights[src] * dfp[(src if (flag or is_per90_colname(src)) else f"{src}_p90") + "_z"]
     for src, flag in zip(metric_slots, already_norm_flags)
-    if src and src in weights  # <— ignora slots vazios
 )
 dfp["score_0_100"] = (dfp["score"].rank(pct=True) * 100).round(1)
 
@@ -398,8 +367,6 @@ if "_contract_end" in dfp.columns: show_cols.append("_contract_end")
 show_cols += ["score", "score_0_100"]
 
 for src, flag in zip(metric_slots, already_norm_flags):
-    if not src:
-        continue
     per90_name = src if (flag or is_per90_colname(src)) else f"{src}_p90"
     show_cols += [per90_name, per90_name + "_pct"]
 
