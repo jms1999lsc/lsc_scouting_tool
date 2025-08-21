@@ -218,14 +218,36 @@ with st.sidebar.expander("⚙️ Mapeamento", expanded=True):
         key="map_contract",
     )
 
-# ----------------------- Filtros (juntos) -----------------------
+# ----------------------- Filtros (UI) -----------------------
+# (deixa as variáveis criadas acima como: age_range=None, val_range=None, d_from=d_to=None)
+
 with st.sidebar.expander("🧹 Filtros", expanded=True):
-    st.sidebar.markdown("---")
     st.sidebar.subheader("Filtros")
-    min_minutes = st.sidebar.slider("Minutos mínimos", 0, 4500, 900, 30)
-    age_range = None          # ← NEW
-    val_range = None
-    d_from = d_to = None
+
+    # Minutos (sempre visível)
+    min_minutes = st.sidebar.slider("Minutos mínimos", 0, 4500, 900, 30, key="flt_minutes")
+
+    # Idade (se existir coluna mapeada e valores válidos)
+    if age_col != "(não usar)" and "_age" in dfw.columns and dfw["_age"].notna().any():
+        a_min = int(np.nanmin(dfw["_age"]))
+        a_max = int(np.nanmax(dfw["_age"]))
+        age_range = st.sidebar.slider("Idade", min_value=a_min, max_value=a_max,
+                                      value=(a_min, a_max), key="flt_age")
+
+    # Valor de mercado (se existir)
+    if "_market_value" in dfw.columns:
+        mv_min = float(np.nanmin(dfw["_market_value"])) if np.isfinite(np.nanmin(dfw["_market_value"])) else 0.0
+        mv_max = float(np.nanmax(dfw["_market_value"])) if np.isfinite(np.nanmax(dfw["_market_value"])) else 0.0
+        val_range = st.sidebar.slider("Valor de mercado", min_value=float(mv_min), max_value=float(mv_max),
+                                      value=(float(mv_min), float(mv_max)), key="flt_value")
+
+    # Fim de contrato (se existir)
+    if "_contract_end" in dfw.columns and dfw["_contract_end"].notna().any():
+        dates_present = [d for d in dfw["_contract_end"] if d is not None]
+        if dates_present:
+            dmin, dmax = min(dates_present), max(dates_present)
+            d_from, d_to = st.sidebar.date_input("Fim de contrato entre", value=(dmin, dmax), key="flt_contract")
+
 
 # ----------------------- Preparar dataframe -----------------------
 dfw = df.copy()
@@ -589,6 +611,7 @@ if preset_up:
         st.sidebar.success("Preset carregado (aplica manualmente as escolhas na UI).")
     except Exception as e:
         st.sidebar.error(f"Preset inválido: {e}")
+
 
 
 
