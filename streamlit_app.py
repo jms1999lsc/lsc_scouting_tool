@@ -355,22 +355,47 @@ chosen_metrics = [m for m in metric_slots if m]
 if len(set(chosen_metrics)) < len(chosen_metrics):
     st.sidebar.warning("⚠️ Tens métricas repetidas nos 5 slots — considera escolher 5 diferentes.")
 
-# Pesos (somam 1 depois de normalizar)
-st.sidebar.subheader("Pesos")
+# Pesos (soma OBRIGATÓRIA = 1)
+st.sidebar.subheader("Pesos (total = 1.00)")
+chosen_metrics = [m for m in metric_slots if m]  # ignora slots vazios
+
 weights = {}
 
-for i, met in enumerate(metric_slots):
-    if not met:
-        # slot vazio → não cria slider nem entra nos pesos
-        continue
-    label = met if isinstance(met, str) and met.strip() else f"Métrica {i+1}"
-    weights[met] = st.sidebar.slider(label, 0.0, 1.0, 0.2, 0.05, key=f"w_{i}")
+if len(chosen_metrics) == 0:
+    st.sidebar.info("Escolhe pelo menos 1 métrica para definir pesos.")
+elif len(chosen_metrics) == 1:
+    # única métrica recebe 1.0 fixo
+    only = chosen_metrics[0]
+    st.sidebar.caption(f"Só 1 métrica selecionada → peso de **{only} = 1.00**")
+    weights[only] = 1.0
+else:
+    # n >= 2: sliders para as primeiras n-1; última é calculada como restante
+    remaining_metrics = chosen_metrics[:-1]
+    last_metric = chosen_metrics[-1]
 
-total_w = sum(weights.values())
-if abs(total_w - 1.0) > 1e-6:
-    st.sidebar.caption(f"⚖️ Pesos somam {total_w:.2f} → serão normalizados para 1.0")
+    partial_sum = 0.0
+    for i, met in enumerate(remaining_metrics):
+        # default 0.2, mas guarda por key estável para não “saltar”
+        w = st.sidebar.slider(met, 0.0, 1.0, 0.2, 0.05, key=f"w_{i}")
+        weights[met] = w
+        partial_sum += w
 
-weights = normalize_weights(weights)
+    remaining = round(1.0 - partial_sum, 4)  # restante para fechar em 1.0
+
+    # validação dura (bloqueia se não couber)
+    if remaining < 0.0 or remaining > 1.0:
+        st.sidebar.error(
+            f"❌ A soma dos {len(remaining_metrics)} pesos é {partial_sum:.2f}. "
+            f"Tem de ser ≤ 1.00 para sobrar peso para **{last_metric}**."
+        )
+        st.stop()
+
+    # mostra o último como calculado (read‑only)
+    st.sidebar.markdown(
+        f"**{last_metric}** (calculado): **{remaining:.2f}**  \n"
+        f"Total = {partial_sum:.2f} + {remaining:.2f} = **1.00**"
+    )
+    weights[last_metric] = remaining
 
 # ----------------------- Preparar colunas per90 conforme flags -----------------------
 per90_cols = []
@@ -506,6 +531,7 @@ if preset_up:
         st.sidebar.success("Preset carregado (aplica manualmente as escolhas na UI).")
     except Exception as e:
         st.sidebar.error(f"Preset inválido: {e}")
+
 
 
 
