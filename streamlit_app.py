@@ -490,16 +490,27 @@ out.columns = make_unique(out.columns)
 def _style_df(df_):
     sty = df_.style
 
-    # gradiente no score 0-100
+    # Definir formatos para cada tipo de coluna
+    sty = sty.format({
+        "Age": "{:.0f}",             # sem casas decimais
+        "Minutes": "{:.0f}",         # sem casas decimais
+        "market_value": "{:,.0f}",   # inteiro com separador
+        "score": "{:.3f}",           # 3 casas
+        "score_0_100": "{:.1f}",     # 1 casa
+    })
+
+    # Aplicar também às métricas % (terminam em _pct) -> 3 casas
+    pct_cols = [c for c in df_.columns if str(c).endswith("_pct")]
+    for c in pct_cols:
+        sty = sty.format({c: "{:.3f}"})
+
+    # Gradientes visuais
     if "score_0_100" in df_.columns:
         sty = sty.background_gradient(subset=["score_0_100"], cmap="Greens")
-
-    # gradiente em percentis (_pct)
-    pct_cols = [c for c in df_.columns if str(c).endswith("_pct")]
     if pct_cols:
         sty = sty.background_gradient(subset=pct_cols, cmap="Blues")
 
-    # realce contratos a expirar (<= 12 meses) com tom #bd0003 leve
+    # Contrato a vermelho se expira em < 12 meses
     if "contract_end" in df_.columns:
         def warn_contract(col):
             today = pd.Timestamp.today().date()
@@ -514,6 +525,7 @@ def _style_df(df_):
         sty = sty.apply(warn_contract, subset=["contract_end"])
 
     return sty
+
     
 st.caption("Score bruto = soma(peso × z‑score). Score (0–100) = percentil do score dentro do conjunto filtrado.")
 st.dataframe(_style_df(out), use_container_width=True)
@@ -552,6 +564,7 @@ if preset_up:
         st.sidebar.success("Preset carregado (aplica manualmente as escolhas na UI).")
     except Exception as e:
         st.sidebar.error(f"Preset inválido: {e}")
+
 
 
 
