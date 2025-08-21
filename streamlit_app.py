@@ -355,12 +355,16 @@ chosen_metrics = [m for m in metric_slots if m]
 if len(set(chosen_metrics)) < len(chosen_metrics):
     st.sidebar.warning("⚠️ Tens métricas repetidas nos 5 slots — considera escolher 5 diferentes.")
 
-# Pesos (somam 1)
+# Pesos (somam 1 depois de normalizar)
 st.sidebar.subheader("Pesos")
 weights = {}
 for met in metric_slots:
-    if met:
-        weights[met] = st.sidebar.slider(met, 0.0, 1.0, 0.2, 0.05)
+    weights[met] = st.sidebar.slider(met, 0.0, 1.0, 0.2, 0.05)
+
+total_w = sum(weights.values())
+if abs(total_w - 1.0) > 1e-6:
+    st.sidebar.caption(f"⚖️ Pesos somam {total_w:.2f} → serão normalizados para 1.0")
+
 weights = normalize_weights(weights)
 
 # ----------------------- Preparar colunas per90 conforme flags -----------------------
@@ -497,5 +501,6 @@ if preset_up:
         st.sidebar.success("Preset carregado (aplica manualmente as escolhas na UI).")
     except Exception as e:
         st.sidebar.error(f"Preset inválido: {e}")
+
 
 
