@@ -168,43 +168,54 @@ value_col      = guess(["market","valor","value","valormercado"], default=None)
 contract_col   = guess(["contract","contrato","expiry","end"], default=None)
 
 with st.sidebar.expander("⚙️ Mapeamento", expanded=True):
-    st.sidebar.header("Mapeamento")
-    name_col    = st.sidebar.selectbox("Nome do jogador", options=df.columns, index=list(df.columns).index(name_col))
-    team_col    = st.sidebar.selectbox("Equipa (opcional)", options=["(não usar)"] + list(df.columns),
-                                       index=(0 if team_col_g is None else list(df.columns).index(team_col_g)+1))
-    division_col = st.sidebar.selectbox("Divisão/Liga (opcional)", options=["(não usar)"] + list(df.columns),
-                                        index=(0 if division_col_g is None else list(df.columns).index(division_col_g)+1))
-    age_col      = st.sidebar.selectbox("Idade (opcional)", options=["(não usar)"] + list(df.columns),
-                                        index=(0 if age_col_g is None else list(df.columns).index(age_col_g)+1))
-    pos_col     = st.sidebar.selectbox("Posição (texto)", options=df.columns, index=list(df.columns).index(pos_col))
-    minutes_col = st.sidebar.selectbox("Minutos", options=df.columns, index=list(df.columns).index(minutes_col))
-    value_col = st.sidebar.selectbox(
-        "Valor de mercado (opcional)", options=["(não usar)"] + list(df.columns),
-        index=(0 if value_col is None else list(df.columns).index(value_col)+1)
-    )
-    contract_col = st.sidebar.selectbox(
-        "Fim de contrato (opcional)", options=["(não usar)"] + list(df.columns),
-        index=(0 if contract_col is None else list(df.columns).index(contract_col)+1)
+    st.sidebar.subheader("Mapeamento")
+
+    name_col = st.sidebar.selectbox(
+        "Nome do jogador", options=df.columns,
+        index=list(df.columns).index(name_col),
+        key="map_name",
     )
 
-with st.sidebar.expander("⚙️ Mapeamento", expanded=True):
-    st.sidebar.header("Mapeamento")
-    name_col    = st.sidebar.selectbox("Nome do jogador", options=df.columns, index=list(df.columns).index(name_col))
-    team_col    = st.sidebar.selectbox("Equipa (opcional)", options=["(não usar)"] + list(df.columns),
-                                       index=(0 if team_col_g is None else list(df.columns).index(team_col_g)+1))
-    division_col = st.sidebar.selectbox("Divisão/Liga (opcional)", options=["(não usar)"] + list(df.columns),
-                                        index=(0 if division_col_g is None else list(df.columns).index(division_col_g)+1))
-    age_col      = st.sidebar.selectbox("Idade (opcional)", options=["(não usar)"] + list(df.columns),
-                                        index=(0 if age_col_g is None else list(df.columns).index(age_col_g)+1))
-    pos_col     = st.sidebar.selectbox("Posição (texto)", options=df.columns, index=list(df.columns).index(pos_col))
-    minutes_col = st.sidebar.selectbox("Minutos", options=df.columns, index=list(df.columns).index(minutes_col))
+    team_col = st.sidebar.selectbox(
+        "Equipa (opcional)", options=["(não usar)"] + list(df.columns),
+        index=(0 if team_col_g is None else list(df.columns).index(team_col_g)+1),
+        key="map_team",
+    )
+
+    division_col = st.sidebar.selectbox(
+        "Divisão/Liga (opcional)", options=["(não usar)"] + list(df.columns),
+        index=(0 if division_col_g is None else list(df.columns).index(division_col_g)+1),
+        key="map_division",
+    )
+
+    age_col = st.sidebar.selectbox(
+        "Idade (opcional)", options=["(não usar)"] + list(df.columns),
+        index=(0 if age_col_g is None else list(df.columns).index(age_col_g)+1),
+        key="map_age",
+    )
+
+    pos_col = st.sidebar.selectbox(
+        "Posição (texto)", options=df.columns,
+        index=list(df.columns).index(pos_col),
+        key="map_pos",
+    )
+
+    minutes_col = st.sidebar.selectbox(
+        "Minutos", options=df.columns,
+        index=list(df.columns).index(minutes_col),
+        key="map_minutes",
+    )
+
     value_col = st.sidebar.selectbox(
         "Valor de mercado (opcional)", options=["(não usar)"] + list(df.columns),
-        index=(0 if value_col is None else list(df.columns).index(value_col)+1)
+        index=(0 if value_col is None else list(df.columns).index(value_col)+1),
+        key="map_value",
     )
+
     contract_col = st.sidebar.selectbox(
         "Fim de contrato (opcional)", options=["(não usar)"] + list(df.columns),
-        index=(0 if contract_col is None else list(df.columns).index(contract_col)+1)
+        index=(0 if contract_col is None else list(df.columns).index(contract_col)+1),
+        key="map_contract",
     )
 
 # ----------------------- Filtros (juntos) -----------------------
@@ -578,6 +589,7 @@ if preset_up:
         st.sidebar.success("Preset carregado (aplica manualmente as escolhas na UI).")
     except Exception as e:
         st.sidebar.error(f"Preset inválido: {e}")
+
 
 
 
