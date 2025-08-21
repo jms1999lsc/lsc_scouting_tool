@@ -167,32 +167,54 @@ minutes_col    = guess(["min","minutes","mins","minutos"])
 value_col      = guess(["market","valor","value","valormercado"], default=None)
 contract_col   = guess(["contract","contrato","expiry","end"], default=None)
 
-st.sidebar.header("Mapeamento")
-name_col    = st.sidebar.selectbox("Nome do jogador", options=df.columns, index=list(df.columns).index(name_col))
-team_col    = st.sidebar.selectbox("Equipa (opcional)", options=["(não usar)"] + list(df.columns),
-                                   index=(0 if team_col_g is None else list(df.columns).index(team_col_g)+1))
-division_col = st.sidebar.selectbox("Divisão/Liga (opcional)", options=["(não usar)"] + list(df.columns),
-                                    index=(0 if division_col_g is None else list(df.columns).index(division_col_g)+1))
-age_col      = st.sidebar.selectbox("Idade (opcional)", options=["(não usar)"] + list(df.columns),
-                                    index=(0 if age_col_g is None else list(df.columns).index(age_col_g)+1))
-pos_col     = st.sidebar.selectbox("Posição (texto)", options=df.columns, index=list(df.columns).index(pos_col))
-minutes_col = st.sidebar.selectbox("Minutos", options=df.columns, index=list(df.columns).index(minutes_col))
-value_col = st.sidebar.selectbox(
-    "Valor de mercado (opcional)", options=["(não usar)"] + list(df.columns),
-    index=(0 if value_col is None else list(df.columns).index(value_col)+1)
-)
-contract_col = st.sidebar.selectbox(
-    "Fim de contrato (opcional)", options=["(não usar)"] + list(df.columns),
-    index=(0 if contract_col is None else list(df.columns).index(contract_col)+1)
-)
+with st.sidebar.expander("⚙️ Mapeamento", expanded=True):
+    st.sidebar.header("Mapeamento")
+    name_col    = st.sidebar.selectbox("Nome do jogador", options=df.columns, index=list(df.columns).index(name_col))
+    team_col    = st.sidebar.selectbox("Equipa (opcional)", options=["(não usar)"] + list(df.columns),
+                                       index=(0 if team_col_g is None else list(df.columns).index(team_col_g)+1))
+    division_col = st.sidebar.selectbox("Divisão/Liga (opcional)", options=["(não usar)"] + list(df.columns),
+                                        index=(0 if division_col_g is None else list(df.columns).index(division_col_g)+1))
+    age_col      = st.sidebar.selectbox("Idade (opcional)", options=["(não usar)"] + list(df.columns),
+                                        index=(0 if age_col_g is None else list(df.columns).index(age_col_g)+1))
+    pos_col     = st.sidebar.selectbox("Posição (texto)", options=df.columns, index=list(df.columns).index(pos_col))
+    minutes_col = st.sidebar.selectbox("Minutos", options=df.columns, index=list(df.columns).index(minutes_col))
+    value_col = st.sidebar.selectbox(
+        "Valor de mercado (opcional)", options=["(não usar)"] + list(df.columns),
+        index=(0 if value_col is None else list(df.columns).index(value_col)+1)
+    )
+    contract_col = st.sidebar.selectbox(
+        "Fim de contrato (opcional)", options=["(não usar)"] + list(df.columns),
+        index=(0 if contract_col is None else list(df.columns).index(contract_col)+1)
+    )
+
+with st.sidebar.expander("⚙️ Mapeamento", expanded=True):
+    st.sidebar.header("Mapeamento")
+    name_col    = st.sidebar.selectbox("Nome do jogador", options=df.columns, index=list(df.columns).index(name_col))
+    team_col    = st.sidebar.selectbox("Equipa (opcional)", options=["(não usar)"] + list(df.columns),
+                                       index=(0 if team_col_g is None else list(df.columns).index(team_col_g)+1))
+    division_col = st.sidebar.selectbox("Divisão/Liga (opcional)", options=["(não usar)"] + list(df.columns),
+                                        index=(0 if division_col_g is None else list(df.columns).index(division_col_g)+1))
+    age_col      = st.sidebar.selectbox("Idade (opcional)", options=["(não usar)"] + list(df.columns),
+                                        index=(0 if age_col_g is None else list(df.columns).index(age_col_g)+1))
+    pos_col     = st.sidebar.selectbox("Posição (texto)", options=df.columns, index=list(df.columns).index(pos_col))
+    minutes_col = st.sidebar.selectbox("Minutos", options=df.columns, index=list(df.columns).index(minutes_col))
+    value_col = st.sidebar.selectbox(
+        "Valor de mercado (opcional)", options=["(não usar)"] + list(df.columns),
+        index=(0 if value_col is None else list(df.columns).index(value_col)+1)
+    )
+    contract_col = st.sidebar.selectbox(
+        "Fim de contrato (opcional)", options=["(não usar)"] + list(df.columns),
+        index=(0 if contract_col is None else list(df.columns).index(contract_col)+1)
+    )
 
 # ----------------------- Filtros (juntos) -----------------------
-st.sidebar.markdown("---")
-st.sidebar.subheader("Filtros")
-min_minutes = st.sidebar.slider("Minutos mínimos", 0, 4500, 900, 30)
-age_range = None          # ← NEW
-val_range = None
-d_from = d_to = None
+with st.sidebar.expander("🧹 Filtros", expanded=True):
+    st.sidebar.markdown("---")
+    st.sidebar.subheader("Filtros")
+    min_minutes = st.sidebar.slider("Minutos mínimos", 0, 4500, 900, 30)
+    age_range = None          # ← NEW
+    val_range = None
+    d_from = d_to = None
 
 # ----------------------- Preparar dataframe -----------------------
 dfw = df.copy()
@@ -311,85 +333,87 @@ def suggest_defaults(profile_key_list, candidates):
 
 # ----------------------- Sidebar: Perfil / Etiquetas / Métricas / Pesos -----------------------
 st.sidebar.markdown("---")
-st.sidebar.subheader("Perfil / Etiquetas")
-profile = st.sidebar.selectbox("Perfil a ranquear", list(PROFILES.keys()))
-unique_pos_vals = sorted(map(str, dfw[pos_col].dropna().unique().tolist()))
-profile_labels = st.sidebar.multiselect(
-    f"Etiquetas (posições) associadas a '{profile}'",
-    options=unique_pos_vals,
-    default=unique_pos_vals[:1]
-)
+with st.sidebar.expander("🎯 Perfil & Etiquetas", expanded=True)
+    st.sidebar.subheader("Perfil / Etiquetas")
+    profile = st.sidebar.selectbox("Perfil a ranquear", list(PROFILES.keys()))
+    unique_pos_vals = sorted(map(str, dfw[pos_col].dropna().unique().tolist()))
+    profile_labels = st.sidebar.multiselect(
+        f"Etiquetas (posições) associadas a '{profile}'",
+        options=unique_pos_vals,
+        default=unique_pos_vals[:1]
+    )
 
 # Métricas (5) + override "já é per90/%"
-st.sidebar.subheader("Métricas (5)")
-defaults = suggest_defaults(PROFILES[profile], metric_candidates)
-
-PLACEHOLDER = "(escolher métrica)"
-metric_slots, already_norm_flags = [], []
-
-for i in range(5):
-    options = [PLACEHOLDER] + (metric_candidates if metric_candidates else [])
-    # índice: se houver default válido, usa-o; senão fica no placeholder
-    if i < len(defaults) and defaults[i] in metric_candidates:
-        idx = 1 + metric_candidates.index(defaults[i])
+with st.sidebar.expander("📏 Métricas & Pesos", expanded=True):
+    st.sidebar.subheader("Métricas (5)")
+    defaults = suggest_defaults(PROFILES[profile], metric_candidates)
+    
+    PLACEHOLDER = "(escolher métrica)"
+    metric_slots, already_norm_flags = [], []
+    
+    for i in range(5):
+        options = [PLACEHOLDER] + (metric_candidates if metric_candidates else [])
+        # índice: se houver default válido, usa-o; senão fica no placeholder
+        if i < len(defaults) and defaults[i] in metric_candidates:
+            idx = 1 + metric_candidates.index(defaults[i])
+        else:
+            idx = 0
+    
+        mcol = st.sidebar.selectbox(
+            f"Métrica {i+1}",
+            options=options,
+            index=idx,
+            key=f"metric_sel_{i}"
+        )
+    
+        if mcol == PLACEHOLDER:
+            # slot vazio (utilizador ainda não escolheu) → não cria checkbox
+            st.sidebar.caption("Escolhe uma métrica para este slot.")
+            metric_slots.append(None)
+            already_norm_flags.append(False)
+            continue
+    
+        # inferir automaticamente se já é per90/% (podes corrigir no checkbox)
+        infer_norm = infer_already_normalized(dfw[mcol], dfw[minutes_col])
+        flag = st.sidebar.checkbox(
+            "Já é per90/percentual (não converter)",
+            value=bool(infer_norm),
+            key=f"metric_norm_{i}"
+        )
+        st.sidebar.caption("Deteção sugere 'já normalizada'." if infer_norm else "Deteção sugere 'raw' → converter p/90.")
+    
+        metric_slots.append(mcol)
+        already_norm_flags.append(flag)
+    
+    # Aviso de repetidas (ignora slots vazios)
+    chosen_metrics = [m for m in metric_slots if m]
+    if len(set(chosen_metrics)) < len(chosen_metrics):
+        st.sidebar.warning("⚠️ Tens métricas repetidas nos 5 slots — considera escolher 5 diferentes.")
+    
+    # Pesos (soma OBRIGATÓRIA = 1.00, sem normalizar e sem cálculo automático)
+    st.sidebar.subheader("Pesos (total deve ser 1.00)")
+    
+    weights = {}
+    chosen_metrics = [m for m in metric_slots if m]  # ignora slots vazios
+    
+    if not chosen_metrics:
+        st.sidebar.info("Escolhe pelo menos 1 métrica para definir pesos.")
     else:
-        idx = 0
-
-    mcol = st.sidebar.selectbox(
-        f"Métrica {i+1}",
-        options=options,
-        index=idx,
-        key=f"metric_sel_{i}"
-    )
-
-    if mcol == PLACEHOLDER:
-        # slot vazio (utilizador ainda não escolheu) → não cria checkbox
-        st.sidebar.caption("Escolhe uma métrica para este slot.")
-        metric_slots.append(None)
-        already_norm_flags.append(False)
-        continue
-
-    # inferir automaticamente se já é per90/% (podes corrigir no checkbox)
-    infer_norm = infer_already_normalized(dfw[mcol], dfw[minutes_col])
-    flag = st.sidebar.checkbox(
-        "Já é per90/percentual (não converter)",
-        value=bool(infer_norm),
-        key=f"metric_norm_{i}"
-    )
-    st.sidebar.caption("Deteção sugere 'já normalizada'." if infer_norm else "Deteção sugere 'raw' → converter p/90.")
-
-    metric_slots.append(mcol)
-    already_norm_flags.append(flag)
-
-# Aviso de repetidas (ignora slots vazios)
-chosen_metrics = [m for m in metric_slots if m]
-if len(set(chosen_metrics)) < len(chosen_metrics):
-    st.sidebar.warning("⚠️ Tens métricas repetidas nos 5 slots — considera escolher 5 diferentes.")
-
-# Pesos (soma OBRIGATÓRIA = 1.00, sem normalizar e sem cálculo automático)
-st.sidebar.subheader("Pesos (total deve ser 1.00)")
-
-weights = {}
-chosen_metrics = [m for m in metric_slots if m]  # ignora slots vazios
-
-if not chosen_metrics:
-    st.sidebar.info("Escolhe pelo menos 1 métrica para definir pesos.")
-else:
-    # sliders independentes (passo mais fino para ser fácil acertar 1.00)
-    for i, met in enumerate(chosen_metrics):
-        weights[met] = st.sidebar.slider(met, 0.0, 1.0, 0.20, 0.01, key=f"w_{i}")
-
-    total_w = sum(weights.values())
-    eps = 1e-6  # tolerância numérica
-
-    if total_w > 1.0 + eps:
-        st.sidebar.error(f"❌ Os pesos somam {total_w:.2f} (> 1.00). Reduz um ou mais pesos.")
-        st.stop()
-    elif total_w < 1.0 - eps:
-        st.sidebar.error(f"❌ Os pesos somam {total_w:.2f} (< 1.00). Aumenta os pesos até perfazer 1.00.")
-        st.stop()
-    else:
-        st.sidebar.caption("✅ Total = 1.00")
+        # sliders independentes (passo mais fino para ser fácil acertar 1.00)
+        for i, met in enumerate(chosen_metrics):
+            weights[met] = st.sidebar.slider(met, 0.0, 1.0, 0.20, 0.01, key=f"w_{i}")
+    
+        total_w = sum(weights.values())
+        eps = 1e-6  # tolerância numérica
+    
+        if total_w > 1.0 + eps:
+            st.sidebar.error(f"❌ Os pesos somam {total_w:.2f} (> 1.00). Reduz um ou mais pesos.")
+            st.stop()
+        elif total_w < 1.0 - eps:
+            st.sidebar.error(f"❌ Os pesos somam {total_w:.2f} (< 1.00). Aumenta os pesos até perfazer 1.00.")
+            st.stop()
+        else:
+            st.sidebar.caption("✅ Total = 1.00")
 
 # ----------------------- Preparar colunas per90 conforme flags -----------------------
 per90_cols = []
@@ -489,7 +513,36 @@ out.columns = make_unique(out.columns)
 
 st.subheader(f"Ranking — {profile}")
 st.caption("Score bruto = soma(peso × z‑score). Score (0–100) = percentil do score dentro do conjunto filtrado.")
-st.dataframe(out, use_container_width=True)
+def _style_df(df_):
+    sty = df_.style
+
+    # gradiente no score 0-100
+    if "score_0_100" in df_.columns:
+        sty = sty.background_gradient(subset=["score_0_100"], cmap="Greens")
+
+    # gradiente em percentis (_pct)
+    pct_cols = [c for c in df_.columns if str(c).endswith("_pct")]
+    if pct_cols:
+        sty = sty.background_gradient(subset=pct_cols, cmap="Blues")
+
+    # realce contratos a expirar (<= 12 meses) com tom #bd0003 leve
+    if "contract_end" in df_.columns:
+        def warn_contract(col):
+            today = pd.Timestamp.today().date()
+            def colorize(x):
+                try:
+                    d = pd.to_datetime(x).date()
+                    months = (d.year - today.year) * 12 + (d.month - today.month)
+                    return "background-color: rgba(189,0,3,0.08)" if months <= 12 else ""
+                except Exception:
+                    return ""
+            return [colorize(v) for v in col]
+        sty = sty.apply(warn_contract, subset=["contract_end"])
+
+    return sty
+
+st.dataframe(_style_df(out), use_container_width=True)
+
 
 # ----------------------- Exportações -----------------------
 csv_bytes = out.to_csv(index=False).encode("utf-8")
@@ -525,6 +578,7 @@ if preset_up:
         st.sidebar.success("Preset carregado (aplica manualmente as escolhas na UI).")
     except Exception as e:
         st.sidebar.error(f"Preset inválido: {e}")
+
 
 
 
