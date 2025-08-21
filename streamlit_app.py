@@ -179,6 +179,7 @@ contract_col = st.sidebar.selectbox(
 st.sidebar.markdown("---")
 st.sidebar.subheader("Filtros")
 min_minutes = st.sidebar.slider("Minutos mínimos", 0, 4500, 900, 30)
+age_range = None          # ← NEW
 val_range = None
 d_from = d_to = None
 
@@ -187,12 +188,20 @@ dfw = df.copy()
 dfw[minutes_col] = pd.to_numeric(dfw[minutes_col], errors="coerce")
 dfw = dfw[dfw[minutes_col].notna() & (dfw[minutes_col] >= min_minutes)].copy()
 
+# ---- IDADE (novo) ----
+if age_col != "(não usar)":
+    dfw["_age"] = pd.to_numeric(dfw[age_col], errors="coerce")
+
+# ---- VALOR DE MERCADO (igual ao que tinhas) ----
 if value_col != "(não usar)":
     dfw["_market_value"] = pd.to_numeric(dfw[value_col], errors="coerce")
+
+# ---- FIM DE CONTRATO (igual ao que tinhas) ----
 if contract_col != "(não usar)":
     dfw["_contract_end"] = dfw[contract_col].apply(to_date_any)
 
-# completar controlos de filtros (renderizados no mesmo grupo)
+# ----------------------- Controlo dos filtros (no mesmo grupo) -----------------------
+# Valor de mercado
 if "_market_value" in dfw.columns:
     mv_min = float(np.nanmin(dfw["_market_value"])) if np.isfinite(np.nanmin(dfw["_market_value"])) else 0.0
     mv_max = float(np.nanmax(dfw["_market_value"])) if np.isfinite(np.nanmax(dfw["_market_value"])) else 0.0
@@ -201,6 +210,7 @@ if "_market_value" in dfw.columns:
 else:
     val_range = None
 
+# Fim de contrato
 if "_contract_end" in dfw.columns and dfw["_contract_end"].notna().any():
     dates_present = [d for d in dfw["_contract_end"] if d is not None]
     if dates_present:
@@ -210,6 +220,14 @@ if "_contract_end" in dfw.columns and dfw["_contract_end"].notna().any():
         d_from = d_to = None
 else:
     d_from = d_to = None
+
+# Idade (novo)
+if "_age" in dfw.columns and dfw["_age"].notna().any():
+    a_min = int(np.nanmin(dfw["_age"]))
+    a_max = int(np.nanmax(dfw["_age"]))
+    age_range = st.sidebar.slider("Idade", min_value=a_min, max_value=a_max, value=(a_min, a_max))
+else:
+    age_range = None
 
 # ----------------------- Perfis & defaults -----------------------
 KEYS = {
@@ -479,4 +497,5 @@ if preset_up:
         st.sidebar.success("Preset carregado (aplica manualmente as escolhas na UI).")
     except Exception as e:
         st.sidebar.error(f"Preset inválido: {e}")
+
 
