@@ -28,23 +28,8 @@ def check_password():
 if not check_password():
     st.stop()
 
-st.set_page_config(
-    page_title="LSC Scouting",
-    page_icon="⚽",
-    layout="wide",
-    initial_sidebar_state="expanded",
-)
-
-# CSS leve: esconde menu/rodapé e ajusta paddings
-st.markdown("""
-<style>
-#MainMenu {visibility: hidden;}
-footer {visibility: hidden;}
-.block-container {padding-top: 0.8rem; padding-bottom: 2rem;}
-section[data-testid="stSidebar"] .stSlider {margin-bottom: .6rem;}
-h1, h2, h3 { letter-spacing: 0.2px; }
-</style>
-""", unsafe_allow_html=True)
+st.set_page_config(page_title="Scouting LSC → Ferramenta Perfis & Ranking", layout="wide")
+st.title("Scouting LSC → Ferramenta Perfis & Ranking")
 
 # ----------------------- Helpers -----------------------
 def read_csv_flex(file_bytes):
@@ -167,67 +152,30 @@ minutes_col    = guess(["min","minutes","mins","minutos"])
 value_col      = guess(["market","valor","value","valormercado"], default=None)
 contract_col   = guess(["contract","contrato","expiry","end"], default=None)
 
-with st.sidebar.expander("⚙️ Mapeamento", expanded=True):
-    st.sidebar.subheader("Mapeamento")
+st.sidebar.header("Mapeamento")
+name_col    = st.sidebar.selectbox("Nome do jogador", options=df.columns, index=list(df.columns).index(name_col))
+team_col    = st.sidebar.selectbox("Equipa (opcional)", options=["(não usar)"] + list(df.columns),
+                                   index=(0 if team_col_g is None else list(df.columns).index(team_col_g)+1))
+division_col = st.sidebar.selectbox("Divisão/Liga (opcional)", options=["(não usar)"] + list(df.columns),
+                                    index=(0 if division_col_g is None else list(df.columns).index(division_col_g)+1))
+age_col      = st.sidebar.selectbox("Idade (opcional)", options=["(não usar)"] + list(df.columns),
+                                    index=(0 if age_col_g is None else list(df.columns).index(age_col_g)+1))
+pos_col     = st.sidebar.selectbox("Posição (texto)", options=df.columns, index=list(df.columns).index(pos_col))
+minutes_col = st.sidebar.selectbox("Minutos", options=df.columns, index=list(df.columns).index(minutes_col))
+value_col = st.sidebar.selectbox(
+    "Valor de mercado (opcional)", options=["(não usar)"] + list(df.columns),
+    index=(0 if value_col is None else list(df.columns).index(value_col)+1)
+)
+contract_col = st.sidebar.selectbox(
+    "Fim de contrato (opcional)", options=["(não usar)"] + list(df.columns),
+    index=(0 if contract_col is None else list(df.columns).index(contract_col)+1)
+)
 
-    name_col = st.sidebar.selectbox(
-        "Nome do jogador", options=df.columns,
-        index=list(df.columns).index(name_col),
-        key="map_name",
-    )
-
-    team_col = st.sidebar.selectbox(
-        "Equipa (opcional)", options=["(não usar)"] + list(df.columns),
-        index=(0 if team_col_g is None else list(df.columns).index(team_col_g)+1),
-        key="map_team",
-    )
-
-    division_col = st.sidebar.selectbox(
-        "Divisão/Liga (opcional)", options=["(não usar)"] + list(df.columns),
-        index=(0 if division_col_g is None else list(df.columns).index(division_col_g)+1),
-        key="map_division",
-    )
-
-    age_col = st.sidebar.selectbox(
-        "Idade (opcional)", options=["(não usar)"] + list(df.columns),
-        index=(0 if age_col_g is None else list(df.columns).index(age_col_g)+1),
-        key="map_age",
-    )
-
-    pos_col = st.sidebar.selectbox(
-        "Posição (texto)", options=df.columns,
-        index=list(df.columns).index(pos_col),
-        key="map_pos",
-    )
-
-    minutes_col = st.sidebar.selectbox(
-        "Minutos", options=df.columns,
-        index=list(df.columns).index(minutes_col),
-        key="map_minutes",
-    )
-
-    value_col = st.sidebar.selectbox(
-        "Valor de mercado (opcional)", options=["(não usar)"] + list(df.columns),
-        index=(0 if value_col is None else list(df.columns).index(value_col)+1),
-        key="map_value",
-    )
-
-    contract_col = st.sidebar.selectbox(
-        "Fim de contrato (opcional)", options=["(não usar)"] + list(df.columns),
-        index=(0 if contract_col is None else list(df.columns).index(contract_col)+1),
-        key="map_contract",
-    )
-
-# ----------------------- Filtros (UI) -----------------------
-# Criação do expander de filtros
-flt = st.sidebar.expander("🧹 Filtros", expanded=True)
-with flt:
-    st.subheader("Filtros")
-    # Filtro de minutos (sempre aparece)
-    min_minutes = st.slider("Minutos mínimos", 0, 4500, 900, 30, key="flt_minutes")
-
-# Guardar variáveis para os outros filtros (serão preenchidas mais tarde)
-age_range = None
+# ----------------------- Filtros (juntos) -----------------------
+st.sidebar.markdown("---")
+st.sidebar.subheader("Filtros")
+min_minutes = st.sidebar.slider("Minutos mínimos", 0, 4500, 900, 30)
+age_range = None          # ← NEW
 val_range = None
 d_from = d_to = None
 
@@ -236,35 +184,17 @@ dfw = df.copy()
 dfw[minutes_col] = pd.to_numeric(dfw[minutes_col], errors="coerce")
 dfw = dfw[dfw[minutes_col].notna() & (dfw[minutes_col] >= min_minutes)].copy()
 
-# ----------------------- Filtros (restantes dentro do mesmo expander) -----------------------
-with flt:
-    # Idade
-    if age_col != "(não usar)":
-        dfw["_age"] = pd.to_numeric(dfw[age_col], errors="coerce")
-        if dfw["_age"].notna().any():
-            a_min = int(np.nanmin(dfw["_age"]))
-            a_max = int(np.nanmax(dfw["_age"]))
-            age_range = st.slider("Idade", min_value=a_min, max_value=a_max,
-                                  value=(a_min, a_max), key="flt_age")
+# ---- IDADE (novo) ----
+if age_col != "(não usar)":
+    dfw["_age"] = pd.to_numeric(dfw[age_col], errors="coerce")
 
-    # Valor de mercado
-    if value_col != "(não usar)":
-        dfw["_market_value"] = pd.to_numeric(dfw[value_col], errors="coerce")
-        if dfw["_market_value"].notna().any():
-            mv_min = float(np.nanmin(dfw["_market_value"]))
-            mv_max = float(np.nanmax(dfw["_market_value"]))
-            val_range = st.slider("Valor de mercado", min_value=float(mv_min), max_value=float(mv_max),
-                                  value=(float(mv_min), float(mv_max)), key="flt_value")
+# ---- VALOR DE MERCADO (igual ao que tinhas) ----
+if value_col != "(não usar)":
+    dfw["_market_value"] = pd.to_numeric(dfw[value_col], errors="coerce")
 
-    # Fim de contrato
-    if contract_col != "(não usar)":
-        dfw["_contract_end"] = dfw[contract_col].apply(to_date_any)
-        if dfw["_contract_end"].notna().any():
-            dates_present = [d for d in dfw["_contract_end"] if d is not None]
-            if dates_present:
-                dmin, dmax = min(dates_present), max(dates_present)
-                d_from, d_to = st.date_input("Fim de contrato entre", value=(dmin, dmax), key="flt_contract")
-
+# ---- FIM DE CONTRATO (igual ao que tinhas) ----
+if contract_col != "(não usar)":
+    dfw["_contract_end"] = dfw[contract_col].apply(to_date_any)
 
 # ----------------------- Controlo dos filtros (no mesmo grupo) -----------------------
 # Valor de mercado
@@ -366,87 +296,85 @@ def suggest_defaults(profile_key_list, candidates):
 
 # ----------------------- Sidebar: Perfil / Etiquetas / Métricas / Pesos -----------------------
 st.sidebar.markdown("---")
-with st.sidebar.expander("🎯 Perfil & Etiquetas", expanded=True):
-    st.sidebar.subheader("Perfil / Etiquetas")
-    profile = st.sidebar.selectbox("Perfil a ranquear", list(PROFILES.keys()))
-    unique_pos_vals = sorted(map(str, dfw[pos_col].dropna().unique().tolist()))
-    profile_labels = st.sidebar.multiselect(
-        f"Etiquetas (posições) associadas a '{profile}'",
-        options=unique_pos_vals,
-        default=unique_pos_vals[:1]
-    )
+st.sidebar.subheader("Perfil / Etiquetas")
+profile = st.sidebar.selectbox("Perfil a ranquear", list(PROFILES.keys()))
+unique_pos_vals = sorted(map(str, dfw[pos_col].dropna().unique().tolist()))
+profile_labels = st.sidebar.multiselect(
+    f"Etiquetas (posições) associadas a '{profile}'",
+    options=unique_pos_vals,
+    default=unique_pos_vals[:1]
+)
 
 # Métricas (5) + override "já é per90/%"
-with st.sidebar.expander("📏 Métricas & Pesos", expanded=True):
-    st.sidebar.subheader("Métricas (5)")
-    defaults = suggest_defaults(PROFILES[profile], metric_candidates)
-    
-    PLACEHOLDER = "(escolher métrica)"
-    metric_slots, already_norm_flags = [], []
-    
-    for i in range(5):
-        options = [PLACEHOLDER] + (metric_candidates if metric_candidates else [])
-        # índice: se houver default válido, usa-o; senão fica no placeholder
-        if i < len(defaults) and defaults[i] in metric_candidates:
-            idx = 1 + metric_candidates.index(defaults[i])
-        else:
-            idx = 0
-    
-        mcol = st.sidebar.selectbox(
-            f"Métrica {i+1}",
-            options=options,
-            index=idx,
-            key=f"metric_sel_{i}"
-        )
-    
-        if mcol == PLACEHOLDER:
-            # slot vazio (utilizador ainda não escolheu) → não cria checkbox
-            st.sidebar.caption("Escolhe uma métrica para este slot.")
-            metric_slots.append(None)
-            already_norm_flags.append(False)
-            continue
-    
-        # inferir automaticamente se já é per90/% (podes corrigir no checkbox)
-        infer_norm = infer_already_normalized(dfw[mcol], dfw[minutes_col])
-        flag = st.sidebar.checkbox(
-            "Já é per90/percentual (não converter)",
-            value=bool(infer_norm),
-            key=f"metric_norm_{i}"
-        )
-        st.sidebar.caption("Deteção sugere 'já normalizada'." if infer_norm else "Deteção sugere 'raw' → converter p/90.")
-    
-        metric_slots.append(mcol)
-        already_norm_flags.append(flag)
-    
-    # Aviso de repetidas (ignora slots vazios)
-    chosen_metrics = [m for m in metric_slots if m]
-    if len(set(chosen_metrics)) < len(chosen_metrics):
-        st.sidebar.warning("⚠️ Tens métricas repetidas nos 5 slots — considera escolher 5 diferentes.")
-    
-    # Pesos (soma OBRIGATÓRIA = 1.00, sem normalizar e sem cálculo automático)
-    st.sidebar.subheader("Pesos (total deve ser 1.00)")
-    
-    weights = {}
-    chosen_metrics = [m for m in metric_slots if m]  # ignora slots vazios
-    
-    if not chosen_metrics:
-        st.sidebar.info("Escolhe pelo menos 1 métrica para definir pesos.")
+st.sidebar.subheader("Métricas (5)")
+defaults = suggest_defaults(PROFILES[profile], metric_candidates)
+
+PLACEHOLDER = "(escolher métrica)"
+metric_slots, already_norm_flags = [], []
+
+for i in range(5):
+    options = [PLACEHOLDER] + (metric_candidates if metric_candidates else [])
+    # índice: se houver default válido, usa-o; senão fica no placeholder
+    if i < len(defaults) and defaults[i] in metric_candidates:
+        idx = 1 + metric_candidates.index(defaults[i])
     else:
-        # sliders independentes (passo mais fino para ser fácil acertar 1.00)
-        for i, met in enumerate(chosen_metrics):
-            weights[met] = st.sidebar.slider(met, 0.0, 1.0, 0.20, 0.01, key=f"w_{i}")
-    
-        total_w = sum(weights.values())
-        eps = 1e-6  # tolerância numérica
-    
-        if total_w > 1.0 + eps:
-            st.sidebar.error(f"❌ Os pesos somam {total_w:.2f} (> 1.00). Reduz um ou mais pesos.")
-            st.stop()
-        elif total_w < 1.0 - eps:
-            st.sidebar.error(f"❌ Os pesos somam {total_w:.2f} (< 1.00). Aumenta os pesos até perfazer 1.00.")
-            st.stop()
-        else:
-            st.sidebar.caption("✅ Total = 1.00")
+        idx = 0
+
+    mcol = st.sidebar.selectbox(
+        f"Métrica {i+1}",
+        options=options,
+        index=idx,
+        key=f"metric_sel_{i}"
+    )
+
+    if mcol == PLACEHOLDER:
+        # slot vazio (utilizador ainda não escolheu) → não cria checkbox
+        st.sidebar.caption("Escolhe uma métrica para este slot.")
+        metric_slots.append(None)
+        already_norm_flags.append(False)
+        continue
+
+    # inferir automaticamente se já é per90/% (podes corrigir no checkbox)
+    infer_norm = infer_already_normalized(dfw[mcol], dfw[minutes_col])
+    flag = st.sidebar.checkbox(
+        "Já é per90/percentual (não converter)",
+        value=bool(infer_norm),
+        key=f"metric_norm_{i}"
+    )
+    st.sidebar.caption("Deteção sugere 'já normalizada'." if infer_norm else "Deteção sugere 'raw' → converter p/90.")
+
+    metric_slots.append(mcol)
+    already_norm_flags.append(flag)
+
+# Aviso de repetidas (ignora slots vazios)
+chosen_metrics = [m for m in metric_slots if m]
+if len(set(chosen_metrics)) < len(chosen_metrics):
+    st.sidebar.warning("⚠️ Tens métricas repetidas nos 5 slots — considera escolher 5 diferentes.")
+
+# Pesos (soma OBRIGATÓRIA = 1.00, sem normalizar e sem cálculo automático)
+st.sidebar.subheader("Pesos (total deve ser 1.00)")
+
+weights = {}
+chosen_metrics = [m for m in metric_slots if m]  # ignora slots vazios
+
+if not chosen_metrics:
+    st.sidebar.info("Escolhe pelo menos 1 métrica para definir pesos.")
+else:
+    # sliders independentes (passo mais fino para ser fácil acertar 1.00)
+    for i, met in enumerate(chosen_metrics):
+        weights[met] = st.sidebar.slider(met, 0.0, 1.0, 0.20, 0.01, key=f"w_{i}")
+
+    total_w = sum(weights.values())
+    eps = 1e-6  # tolerância numérica
+
+    if total_w > 1.0 + eps:
+        st.sidebar.error(f"❌ Os pesos somam {total_w:.2f} (> 1.00). Reduz um ou mais pesos.")
+        st.stop()
+    elif total_w < 1.0 - eps:
+        st.sidebar.error(f"❌ Os pesos somam {total_w:.2f} (< 1.00). Aumenta os pesos até perfazer 1.00.")
+        st.stop()
+    else:
+        st.sidebar.caption("✅ Total = 1.00")
 
 # ----------------------- Preparar colunas per90 conforme flags -----------------------
 per90_cols = []
@@ -470,13 +398,8 @@ for met in set(per90_cols):
     dfp[met + "_z"]  = zscore_group(dfp[met], dfp[pos_col])
     dfp[met + "_pct"] = pct_group(dfp[met], dfp[pos_col])
 
-# aplicar filtros extra
-if age_col != "(não usar)" and "age_range" in locals() and age_range:
-    dfp = dfp[dfp["_age"].between(age_range[0], age_range[1])]
-
 if val_range and "_market_value" in dfp.columns:
     dfp = dfp[dfp["_market_value"].between(val_range[0], val_range[1])]
-
 if (d_from and d_to) and "_contract_end" in dfp.columns:
     dfp = dfp[dfp["_contract_end"].apply(lambda x: x is not None and d_from <= x <= d_to)]
 
@@ -551,36 +474,7 @@ out.columns = make_unique(out.columns)
 
 st.subheader(f"Ranking — {profile}")
 st.caption("Score bruto = soma(peso × z‑score). Score (0–100) = percentil do score dentro do conjunto filtrado.")
-def _style_df(df_):
-    sty = df_.style
-
-    # gradiente no score 0-100
-    if "score_0_100" in df_.columns:
-        sty = sty.background_gradient(subset=["score_0_100"], cmap="Greens")
-
-    # gradiente em percentis (_pct)
-    pct_cols = [c for c in df_.columns if str(c).endswith("_pct")]
-    if pct_cols:
-        sty = sty.background_gradient(subset=pct_cols, cmap="Blues")
-
-    # realce contratos a expirar (<= 12 meses) com tom #bd0003 leve
-    if "contract_end" in df_.columns:
-        def warn_contract(col):
-            today = pd.Timestamp.today().date()
-            def colorize(x):
-                try:
-                    d = pd.to_datetime(x).date()
-                    months = (d.year - today.year) * 12 + (d.month - today.month)
-                    return "background-color: rgba(189,0,3,0.08)" if months <= 12 else ""
-                except Exception:
-                    return ""
-            return [colorize(v) for v in col]
-        sty = sty.apply(warn_contract, subset=["contract_end"])
-
-    return sty
-
-st.dataframe(_style_df(out), use_container_width=True)
-
+st.dataframe(out, use_container_width=True)
 
 # ----------------------- Exportações -----------------------
 csv_bytes = out.to_csv(index=False).encode("utf-8")
@@ -616,19 +510,3 @@ if preset_up:
         st.sidebar.success("Preset carregado (aplica manualmente as escolhas na UI).")
     except Exception as e:
         st.sidebar.error(f"Preset inválido: {e}")
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
