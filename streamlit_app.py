@@ -80,10 +80,6 @@ def to_date_any(x):
             pass
     return None
 
-def normalize_weights(d):
-    s = sum(d.values())
-    return {k: (v/s if s else 0) for k, v in d.items()}
-
 def guess(tokens, default=None):
     for c in df.columns:
         cl = c.lower()
@@ -528,6 +524,7 @@ if preset_up:
         st.sidebar.success("Preset carregado (aplica manualmente as escolhas na UI).")
     except Exception as e:
         st.sidebar.error(f"Preset inválido: {e}")
+
 
 
 
