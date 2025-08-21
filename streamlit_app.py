@@ -579,17 +579,33 @@ st.dataframe(_style_df(out_fmt), use_container_width=True)
 
 # ----------------------- Exportações -----------------------
 csv_bytes = out.to_csv(index=False).encode("utf-8")
-st.download_button("⬇️ Exportar CSV", data=csv_bytes, file_name=f"ranking_{profile}.csv", mime="text/csv")
 
-try:
-    import io as _io
-    import xlsxwriter  # noqa
-    buf = _io.BytesIO()
-    with pd.ExcelWriter(buf, engine="xlsxwriter") as writer:
-        out.to_excel(writer, index=False, sheet_name="ranking")
-    st.download_button("⬇️ Exportar Excel", data=buf.getvalue(), file_name=f"ranking_{profile}.xlsx")
-except Exception:
-    st.info("Para exportar em Excel, instala:  pip install XlsxWriter")
+cdown1, cdown2 = st.columns(2)
+with cdown1:
+    st.download_button(
+        "⬇️ Exportar CSV",
+        data=csv_bytes,
+        file_name=f"ranking_{profile}.csv",
+        mime="text/csv",
+        use_container_width=True
+    )
+
+with cdown2:
+    try:
+        import io as _io
+        import xlsxwriter  # noqa
+        buf = _io.BytesIO()
+        with pd.ExcelWriter(buf, engine="xlsxwriter") as writer:
+            out.to_excel(writer, index=False, sheet_name="ranking")
+        st.download_button(
+            "⬇️ Exportar Excel",
+            data=buf.getvalue(),
+            file_name=f"ranking_{profile}.xlsx",
+            use_container_width=True
+        )
+    except Exception:
+        st.info("Para exportar em Excel, instala:  pip install XlsxWriter")
+
 
 # ----------------------- Presets -----------------------
 st.sidebar.markdown("---")
@@ -611,4 +627,5 @@ if preset_up:
         st.sidebar.success("Preset carregado (aplica manualmente as escolhas na UI).")
     except Exception as e:
         st.sidebar.error(f"Preset inválido: {e}")
+
 
