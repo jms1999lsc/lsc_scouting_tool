@@ -514,11 +514,9 @@ def _style_df(df_):
         sty = sty.apply(warn_contract, subset=["contract_end"])
 
     return sty
-
-st.dataframe(_style_df(out), use_container_width=True)
-
+    
 st.caption("Score bruto = soma(peso × z‑score). Score (0–100) = percentil do score dentro do conjunto filtrado.")
-st.dataframe(out, use_container_width=True)
+st.dataframe(_style_df(out), use_container_width=True)
 
 # ----------------------- Exportações -----------------------
 csv_bytes = out.to_csv(index=False).encode("utf-8")
@@ -554,5 +552,6 @@ if preset_up:
         st.sidebar.success("Preset carregado (aplica manualmente as escolhas na UI).")
     except Exception as e:
         st.sidebar.error(f"Preset inválido: {e}")
+
 
 
