@@ -333,7 +333,7 @@ def suggest_defaults(profile_key_list, candidates):
 
 # ----------------------- Sidebar: Perfil / Etiquetas / Métricas / Pesos -----------------------
 st.sidebar.markdown("---")
-with st.sidebar.expander("🎯 Perfil & Etiquetas", expanded=True)
+with st.sidebar.expander("🎯 Perfil & Etiquetas", expanded=True):
     st.sidebar.subheader("Perfil / Etiquetas")
     profile = st.sidebar.selectbox("Perfil a ranquear", list(PROFILES.keys()))
     unique_pos_vals = sorted(map(str, dfw[pos_col].dropna().unique().tolist()))
@@ -578,6 +578,7 @@ if preset_up:
         st.sidebar.success("Preset carregado (aplica manualmente as escolhas na UI).")
     except Exception as e:
         st.sidebar.error(f"Preset inválido: {e}")
+
 
 
 
