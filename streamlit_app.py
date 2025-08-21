@@ -530,23 +530,26 @@ def _style_df(df_):
 st.caption("Score bruto = soma(peso × z‑score). Score (0–100) = percentil do score dentro do conjunto filtrado.")
 # ... código acima que prepara o "out" ...
 
-# --- FORMATAÇÃO NUMÉRICA ---
+# ... código acima que prepara o "out" ...
+
+# --- FORMATAÇÃO NUMÉRICA ANTES DE ESTILIZAR ---
 out_fmt = out.copy()
 
-# score → 4 casas
+# 0 casas: idade, minutos, market_value
+for col0 in [c for c in [age_col, minutes_col, "market_value"] if c in out_fmt.columns]:
+    out_fmt[col0] = pd.to_numeric(out_fmt[col0], errors="coerce").round(0).astype("Int64")
+
+# 3 casas: score bruto
 if "score" in out_fmt.columns:
-    out_fmt["score"] = pd.to_numeric(out_fmt["score"], errors="coerce").round(4)
+    out_fmt["score"] = pd.to_numeric(out_fmt["score"], errors="coerce").round(3)
 
-# score_0_100 → 3 casas
+# 1 casa: score 0–100
 if "score_0_100" in out_fmt.columns:
-    out_fmt["score_0_100"] = pd.to_numeric(out_fmt["score_0_100"], errors="coerce").round(3)
+    out_fmt["score_0_100"] = pd.to_numeric(out_fmt["score_0_100"], errors="coerce").round(1)
 
-# todas as colunas depois de score_0_100 → 4 casas
-if "score_0_100" in out_fmt.columns:
-    start_idx = out_fmt.columns.get_loc("score_0_100") + 1
-    metric_cols = out_fmt.columns[start_idx:]
-    for c in metric_cols:
-        out_fmt[c] = pd.to_numeric(out_fmt[c], errors="coerce").round(4)
+# 3 casas: todas as colunas que terminem com _pct
+for c in [c for c in out_fmt.columns if str(c).endswith("_pct")]:
+    out_fmt[c] = pd.to_numeric(out_fmt[c], errors="coerce").round(3)
 
 # --- ESTILO ---
 def _style_df(df_):
@@ -571,6 +574,7 @@ def _style_df(df_):
     return sty
 
 st.dataframe(_style_df(out_fmt), use_container_width=True)
+
 
 
 # ----------------------- Exportações -----------------------
@@ -607,6 +611,7 @@ if preset_up:
         st.sidebar.success("Preset carregado (aplica manualmente as escolhas na UI).")
     except Exception as e:
         st.sidebar.error(f"Preset inválido: {e}")
+
 
 
 
