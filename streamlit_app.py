@@ -219,51 +219,52 @@ with st.sidebar.expander("⚙️ Mapeamento", expanded=True):
     )
 
 # ----------------------- Filtros (UI) -----------------------
-# (deixa as variáveis criadas acima como: age_range=None, val_range=None, d_from=d_to=None)
+# Criação do expander de filtros
+flt = st.sidebar.expander("🧹 Filtros", expanded=True)
+with flt:
+    st.subheader("Filtros")
+    # Filtro de minutos (sempre aparece)
+    min_minutes = st.slider("Minutos mínimos", 0, 4500, 900, 30, key="flt_minutes")
 
-with st.sidebar.expander("🧹 Filtros", expanded=True):
-    st.sidebar.subheader("Filtros")
-
-    # Minutos (sempre visível)
-    min_minutes = st.sidebar.slider("Minutos mínimos", 0, 4500, 900, 30, key="flt_minutes")
-
-    # Idade (se existir coluna mapeada e valores válidos)
-    if age_col != "(não usar)" and "_age" in dfw.columns and dfw["_age"].notna().any():
-        a_min = int(np.nanmin(dfw["_age"]))
-        a_max = int(np.nanmax(dfw["_age"]))
-        age_range = st.sidebar.slider("Idade", min_value=a_min, max_value=a_max,
-                                      value=(a_min, a_max), key="flt_age")
-
-    # Valor de mercado (se existir)
-    if "_market_value" in dfw.columns:
-        mv_min = float(np.nanmin(dfw["_market_value"])) if np.isfinite(np.nanmin(dfw["_market_value"])) else 0.0
-        mv_max = float(np.nanmax(dfw["_market_value"])) if np.isfinite(np.nanmax(dfw["_market_value"])) else 0.0
-        val_range = st.sidebar.slider("Valor de mercado", min_value=float(mv_min), max_value=float(mv_max),
-                                      value=(float(mv_min), float(mv_max)), key="flt_value")
-
-    # Fim de contrato (se existir)
-    if "_contract_end" in dfw.columns and dfw["_contract_end"].notna().any():
-        dates_present = [d for d in dfw["_contract_end"] if d is not None]
-        if dates_present:
-            dmin, dmax = min(dates_present), max(dates_present)
-            d_from, d_to = st.sidebar.date_input("Fim de contrato entre", value=(dmin, dmax), key="flt_contract")
-
+# Guardar variáveis para os outros filtros (serão preenchidas mais tarde)
+age_range = None
+val_range = None
+d_from = d_to = None
 
 # ----------------------- Preparar dataframe -----------------------
 dfw = df.copy()
 dfw[minutes_col] = pd.to_numeric(dfw[minutes_col], errors="coerce")
 dfw = dfw[dfw[minutes_col].notna() & (dfw[minutes_col] >= min_minutes)].copy()
 
-# converter idade se existir
-if age_col != "(não usar)":
-    dfw["_age"] = pd.to_numeric(dfw[age_col], errors="coerce")
+# ----------------------- Filtros (restantes dentro do mesmo expander) -----------------------
+with flt:
+    # Idade
+    if age_col != "(não usar)":
+        dfw["_age"] = pd.to_numeric(dfw[age_col], errors="coerce")
+        if dfw["_age"].notna().any():
+            a_min = int(np.nanmin(dfw["_age"]))
+            a_max = int(np.nanmax(dfw["_age"]))
+            age_range = st.slider("Idade", min_value=a_min, max_value=a_max,
+                                  value=(a_min, a_max), key="flt_age")
 
-if value_col != "(não usar)":
-    dfw["_market_value"] = pd.to_numeric(dfw[value_col], errors="coerce")
+    # Valor de mercado
+    if value_col != "(não usar)":
+        dfw["_market_value"] = pd.to_numeric(dfw[value_col], errors="coerce")
+        if dfw["_market_value"].notna().any():
+            mv_min = float(np.nanmin(dfw["_market_value"]))
+            mv_max = float(np.nanmax(dfw["_market_value"]))
+            val_range = st.slider("Valor de mercado", min_value=float(mv_min), max_value=float(mv_max),
+                                  value=(float(mv_min), float(mv_max)), key="flt_value")
 
-if contract_col != "(não usar)":
-    dfw["_contract_end"] = dfw[contract_col].apply(to_date_any)
-    
+    # Fim de contrato
+    if contract_col != "(não usar)":
+        dfw["_contract_end"] = dfw[contract_col].apply(to_date_any)
+        if dfw["_contract_end"].notna().any():
+            dates_present = [d for d in dfw["_contract_end"] if d is not None]
+            if dates_present:
+                dmin, dmax = min(dates_present), max(dates_present)
+                d_from, d_to = st.date_input("Fim de contrato entre", value=(dmin, dmax), key="flt_contract")
+
 
 # ----------------------- Controlo dos filtros (no mesmo grupo) -----------------------
 # Valor de mercado
@@ -469,8 +470,13 @@ for met in set(per90_cols):
     dfp[met + "_z"]  = zscore_group(dfp[met], dfp[pos_col])
     dfp[met + "_pct"] = pct_group(dfp[met], dfp[pos_col])
 
+# aplicar filtros extra
+if age_col != "(não usar)" and "age_range" in locals() and age_range:
+    dfp = dfp[dfp["_age"].between(age_range[0], age_range[1])]
+
 if val_range and "_market_value" in dfp.columns:
     dfp = dfp[dfp["_market_value"].between(val_range[0], val_range[1])]
+
 if (d_from and d_to) and "_contract_end" in dfp.columns:
     dfp = dfp[dfp["_contract_end"].apply(lambda x: x is not None and d_from <= x <= d_to)]
 
@@ -610,6 +616,7 @@ if preset_up:
         st.sidebar.success("Preset carregado (aplica manualmente as escolhas na UI).")
     except Exception as e:
         st.sidebar.error(f"Preset inválido: {e}")
+
 
 
 
