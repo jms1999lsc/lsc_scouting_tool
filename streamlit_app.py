@@ -528,7 +528,50 @@ def _style_df(df_):
 
     
 st.caption("Score bruto = soma(peso × z‑score). Score (0–100) = percentil do score dentro do conjunto filtrado.")
-st.dataframe(_style_df(out), use_container_width=True)
+# ... código acima que prepara o "out" ...
+
+# --- FORMATAÇÃO NUMÉRICA ANTES DE ESTILIZAR ---
+out_fmt = out.copy()
+
+# 0 casas: idade, minutos, market_value
+for col0 in [c for c in [age_col, minutes_col, "market_value"] if c in out_fmt.columns]:
+    out_fmt[col0] = pd.to_numeric(out_fmt[col0], errors="coerce").round(0).astype("Int64")
+
+# 3 casas: score bruto
+if "score" in out_fmt.columns:
+    out_fmt["score"] = pd.to_numeric(out_fmt["score"], errors="coerce").round(3)
+
+# 1 casa: score 0–100
+if "score_0_100" in out_fmt.columns:
+    out_fmt["score_0_100"] = pd.to_numeric(out_fmt["score_0_100"], errors="coerce").round(1)
+
+# 3 casas: todas as colunas que terminem com _pct
+for c in [c for c in out_fmt.columns if str(c).endswith("_pct")]:
+    out_fmt[c] = pd.to_numeric(out_fmt[c], errors="coerce").round(3)
+
+# --- ESTILO ---
+def _style_df(df_):
+    sty = df_.style
+    if "score_0_100" in df_.columns:
+        sty = sty.background_gradient(subset=["score_0_100"], cmap="Greens")
+    pct_cols = [c for c in df_.columns if str(c).endswith("_pct")]
+    if pct_cols:
+        sty = sty.background_gradient(subset=pct_cols, cmap="Blues")
+    if "contract_end" in df_.columns:
+        def warn_contract(col):
+            today = pd.Timestamp.today().date()
+            def colorize(x):
+                try:
+                    d = pd.to_datetime(x).date()
+                    months = (d.year - today.year) * 12 + (d.month - today.month)
+                    return "background-color: rgba(189,0,3,0.08)" if months <= 12 else ""
+                except Exception:
+                    return ""
+            return [colorize(v) for v in col]
+        sty = sty.apply(warn_contract, subset=["contract_end"])
+    return sty
+
+st.dataframe(_style_df(out_fmt), use_container_width=True)
 
 # ----------------------- Exportações -----------------------
 csv_bytes = out.to_csv(index=False).encode("utf-8")
@@ -564,6 +607,7 @@ if preset_up:
         st.sidebar.success("Preset carregado (aplica manualmente as escolhas na UI).")
     except Exception as e:
         st.sidebar.error(f"Preset inválido: {e}")
+
 
 
 
