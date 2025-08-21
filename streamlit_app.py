@@ -28,8 +28,23 @@ def check_password():
 if not check_password():
     st.stop()
 
-st.set_page_config(page_title="Scouting LSC → Ferramenta Perfis & Ranking", layout="wide")
-st.title("Scouting LSC → Ferramenta Perfis & Ranking")
+st.set_page_config(
+    page_title="LSC Scouting",
+    page_icon="⚽",
+    layout="wide",
+    initial_sidebar_state="expanded",
+)
+
+# CSS leve: esconde menu/rodapé e ajusta paddings
+st.markdown("""
+<style>
+#MainMenu {visibility: hidden;}
+footer {visibility: hidden;}
+.block-container {padding-top: 0.8rem; padding-bottom: 2rem;}
+section[data-testid="stSidebar"] .stSlider {margin-bottom: .6rem;}
+h1, h2, h3 { letter-spacing: 0.2px; }
+</style>
+""", unsafe_allow_html=True)
 
 # ----------------------- Helpers -----------------------
 def read_csv_flex(file_bytes):
@@ -510,3 +525,4 @@ if preset_up:
         st.sidebar.success("Preset carregado (aplica manualmente as escolhas na UI).")
     except Exception as e:
         st.sidebar.error(f"Preset inválido: {e}")
+
