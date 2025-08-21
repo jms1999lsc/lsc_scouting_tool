@@ -358,8 +358,13 @@ if len(set(chosen_metrics)) < len(chosen_metrics):
 # Pesos (somam 1 depois de normalizar)
 st.sidebar.subheader("Pesos")
 weights = {}
-for met in metric_slots:
-    weights[met] = st.sidebar.slider(met, 0.0, 1.0, 0.2, 0.05)
+
+for i, met in enumerate(metric_slots):
+    if not met:
+        # slot vazio → não cria slider nem entra nos pesos
+        continue
+    label = met if isinstance(met, str) and met.strip() else f"Métrica {i+1}"
+    weights[met] = st.sidebar.slider(label, 0.0, 1.0, 0.2, 0.05, key=f"w_{i}")
 
 total_w = sum(weights.values())
 if abs(total_w - 1.0) > 1e-6:
@@ -501,6 +506,7 @@ if preset_up:
         st.sidebar.success("Preset carregado (aplica manualmente as escolhas na UI).")
     except Exception as e:
         st.sidebar.error(f"Preset inválido: {e}")
+
 
 
 
