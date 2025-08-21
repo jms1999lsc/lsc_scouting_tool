@@ -539,11 +539,11 @@ for col0 in [c for c in [age_col, minutes_col, "market_value"] if c in out_fmt.c
 
 # 3 casas: score bruto
 if "score" in out_fmt.columns:
-    out_fmt["score"] = pd.to_numeric(out_fmt["score"], errors="coerce").round(3)
+    out_fmt["score"] = pd.to_numeric(out_fmt["score"], errors="coerce").round(4).astype("Int64")
 
 # 1 casa: score 0–100
 if "score_0_100" in out_fmt.columns:
-    out_fmt["score_0_100"] = pd.to_numeric(out_fmt["score_0_100"], errors="coerce").round(1)
+    out_fmt["score_0_100"] = pd.to_numeric(out_fmt["score_0_100"], errors="coerce").round(2).astype("Int64")
 
 # 3 casas: todas as colunas que terminem com _pct
 for c in [c for c in out_fmt.columns if str(c).endswith("_pct")]:
@@ -607,6 +607,7 @@ if preset_up:
         st.sidebar.success("Preset carregado (aplica manualmente as escolhas na UI).")
     except Exception as e:
         st.sidebar.error(f"Preset inválido: {e}")
+
 
 
 
