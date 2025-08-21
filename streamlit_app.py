@@ -375,14 +375,12 @@ else:
 
     partial_sum = 0.0
     for i, met in enumerate(remaining_metrics):
-        # default 0.2, mas guarda por key estável para não “saltar”
         w = st.sidebar.slider(met, 0.0, 1.0, 0.2, 0.05, key=f"w_{i}")
         weights[met] = w
         partial_sum += w
 
-    remaining = round(1.0 - partial_sum, 4)  # restante para fechar em 1.0
+    remaining = round(1.0 - partial_sum, 4)
 
-    # validação dura (bloqueia se não couber)
     if remaining < 0.0 or remaining > 1.0:
         st.sidebar.error(
             f"❌ A soma dos {len(remaining_metrics)} pesos é {partial_sum:.2f}. "
@@ -390,7 +388,6 @@ else:
         )
         st.stop()
 
-    # mostra o último como calculado (read‑only)
     st.sidebar.markdown(
         f"**{last_metric}** (calculado): **{remaining:.2f}**  \n"
         f"Total = {partial_sum:.2f} + {remaining:.2f} = **1.00**"
@@ -531,6 +528,7 @@ if preset_up:
         st.sidebar.success("Preset carregado (aplica manualmente as escolhas na UI).")
     except Exception as e:
         st.sidebar.error(f"Preset inválido: {e}")
+
 
 
 
