@@ -254,17 +254,16 @@ dfw = df.copy()
 dfw[minutes_col] = pd.to_numeric(dfw[minutes_col], errors="coerce")
 dfw = dfw[dfw[minutes_col].notna() & (dfw[minutes_col] >= min_minutes)].copy()
 
-# ---- IDADE (novo) ----
+# converter idade se existir
 if age_col != "(não usar)":
     dfw["_age"] = pd.to_numeric(dfw[age_col], errors="coerce")
 
-# ---- VALOR DE MERCADO (igual ao que tinhas) ----
 if value_col != "(não usar)":
     dfw["_market_value"] = pd.to_numeric(dfw[value_col], errors="coerce")
 
-# ---- FIM DE CONTRATO (igual ao que tinhas) ----
 if contract_col != "(não usar)":
     dfw["_contract_end"] = dfw[contract_col].apply(to_date_any)
+    
 
 # ----------------------- Controlo dos filtros (no mesmo grupo) -----------------------
 # Valor de mercado
@@ -611,6 +610,7 @@ if preset_up:
         st.sidebar.success("Preset carregado (aplica manualmente as escolhas na UI).")
     except Exception as e:
         st.sidebar.error(f"Preset inválido: {e}")
+
 
 
 
