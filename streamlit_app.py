@@ -487,7 +487,36 @@ out = pd.concat(series_list, axis=1).sort_values("score", ascending=False).reset
 # unicidade final por segurança
 out.columns = make_unique(out.columns)
 
-st.subheader(f"Ranking — {profile}")
+def _style_df(df_):
+    sty = df_.style
+
+    # gradiente no score 0-100
+    if "score_0_100" in df_.columns:
+        sty = sty.background_gradient(subset=["score_0_100"], cmap="Greens")
+
+    # gradiente em percentis (_pct)
+    pct_cols = [c for c in df_.columns if str(c).endswith("_pct")]
+    if pct_cols:
+        sty = sty.background_gradient(subset=pct_cols, cmap="Blues")
+
+    # realce contratos a expirar (<= 12 meses) com tom #bd0003 leve
+    if "contract_end" in df_.columns:
+        def warn_contract(col):
+            today = pd.Timestamp.today().date()
+            def colorize(x):
+                try:
+                    d = pd.to_datetime(x).date()
+                    months = (d.year - today.year) * 12 + (d.month - today.month)
+                    return "background-color: rgba(189,0,3,0.08)" if months <= 12 else ""
+                except Exception:
+                    return ""
+            return [colorize(v) for v in col]
+        sty = sty.apply(warn_contract, subset=["contract_end"])
+
+    return sty
+
+st.dataframe(_style_df(out), use_container_width=True)
+
 st.caption("Score bruto = soma(peso × z‑score). Score (0–100) = percentil do score dentro do conjunto filtrado.")
 st.dataframe(out, use_container_width=True)
 
@@ -525,4 +554,5 @@ if preset_up:
         st.sidebar.success("Preset carregado (aplica manualmente as escolhas na UI).")
     except Exception as e:
         st.sidebar.error(f"Preset inválido: {e}")
+
 
