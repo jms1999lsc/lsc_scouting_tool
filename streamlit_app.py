@@ -190,7 +190,7 @@ def make_unique(columns):
     return new
 
 # --- LOGO no topo da sidebar ---
-st.sidebar.image("logo.png", width=140)   # ajusta 120–160 a gosto
+st.sidebar.image("logo.png", width=160)   # ajusta 120–160 a gosto
 st.sidebar.markdown("---")                # separador fino
 
 # Pré‑visualização opcional
@@ -674,6 +674,7 @@ if preset_up:
         st.sidebar.success("Preset carregado (aplica manualmente as escolhas na UI).")
     except Exception as e:
         st.sidebar.error(f"Preset inválido: {e}")
+
 
 
 
