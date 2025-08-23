@@ -190,9 +190,13 @@ def make_unique(columns):
     return new
 
 # ----------------------- Upload -----------------------
-uploaded = st.file_uploader("Carrega o CSV", type=["csv"])
+# ------- Upload (em expander para não ocupar o topo) -------
+with st.expander("📁 Dados — Carregar & Pré‑visualizar", expanded=False):
+    uploaded = st.file_uploader("Carrega um CSV", type=["csv"], label_visibility="visible")
+    st.caption("Limite 200MB por ficheiro • CSV")
+
 if uploaded is None:
-    st.info("Faz upload do CSV para começar.")
+    st.info("Carrega um CSV em **📁 Dados — Carregar & Pré‑visualizar** para começar.")
     st.stop()
 
 content = uploaded.read()
@@ -201,15 +205,8 @@ if df is None:
     st.error("Não consegui ler o CSV (verifica o separador).")
     st.stop()
 
-# Força nomes de colunas únicos no CSV carregado
-df.columns = make_unique(df.columns)
-
-st.sidebar.image("logo.png", width=150)
-
-# Pré‑visualização opcional
-show_preview = st.sidebar.checkbox("Mostrar pré‑visualização do CSV", value=False)
-if show_preview:
-    st.subheader("Pré‑visualização")
+# Pré‑visualização (agora dentro do expander, quando expandires de novo)
+with st.expander("👀 Pré‑visualização rápida", expanded=False):
     st.dataframe(df.head(20), use_container_width=True)
 
 # ----------------------- Mapeamento mínimo -----------------------
@@ -667,6 +664,7 @@ if preset_up:
         st.sidebar.success("Preset carregado (aplica manualmente as escolhas na UI).")
     except Exception as e:
         st.sidebar.error(f"Preset inválido: {e}")
+
 
 
 
