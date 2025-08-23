@@ -189,6 +189,16 @@ def make_unique(columns):
             new.append(c)
     return new
 
+# --- LOGO no topo da sidebar ---
+st.sidebar.image("logo.png", width=140)   # ajusta 120–160 a gosto
+st.sidebar.markdown("---")                # separador fino
+
+# Pré‑visualização opcional
+show_preview = st.sidebar.checkbox("Mostrar pré-visualização do CSV", value=False)
+if show_preview:
+    st.subheader("Pré‑visualização")
+    st.dataframe(df.head(20), use_container_width=True)
+
 # ----------------------- Upload -----------------------
 # ------- Upload (em expander para não ocupar o topo) -------
 with st.expander("📁 Dados — Carregar & Pré‑visualizar", expanded=False):
@@ -206,7 +216,7 @@ if df is None:
     st.stop()
 
 # Pré‑visualização (agora dentro do expander, quando expandires de novo)
-with st.expander("👀 Pré‑visualização rápida", expanded=False):
+with st.expander("Pré‑visualização rápida", expanded=False):
     st.dataframe(df.head(20), use_container_width=True)
 
 # ----------------------- Mapeamento mínimo -----------------------
@@ -664,6 +674,7 @@ if preset_up:
         st.sidebar.success("Preset carregado (aplica manualmente as escolhas na UI).")
     except Exception as e:
         st.sidebar.error(f"Preset inválido: {e}")
+
 
 
 
