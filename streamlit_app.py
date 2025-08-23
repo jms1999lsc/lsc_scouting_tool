@@ -192,8 +192,8 @@ def make_unique(columns):
 # --- LOGO no topo da sidebar ---
 st.sidebar.markdown(
     """
-    <div style="display:flex; align-items:center; justify-content:center; margin-top:-40px; margin-bottom:10px;">
-        <img src="logo.png" width="120" style="margin-right:10px;">
+    <div style="display:flex; align-items:center; justify-content:center; margin-top:-30px; margin-bottom:10px;">
+        <img src="logo.png" width="40" style="margin-right:10px;">
         <h3 style="margin:0; color:#bd0003;">Leixões SC</h3>
     </div>
     """,
@@ -680,6 +680,7 @@ if preset_up:
         st.sidebar.success("Preset carregado (aplica manualmente as escolhas na UI).")
     except Exception as e:
         st.sidebar.error(f"Preset inválido: {e}")
+
 
 
 
