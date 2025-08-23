@@ -215,9 +215,6 @@ if df is None:
     st.error("Não consegui ler o CSV (verifica o separador).")
     st.stop()
 
-# Pré‑visualização (agora dentro do expander, quando expandires de novo)
-with st.expander("Pré‑visualização rápida", expanded=False):
-    st.dataframe(df.head(20), use_container_width=True)
 
 # ----------------------- Mapeamento mínimo -----------------------
 name_col       = guess(["name","player","jogador"])
@@ -674,6 +671,7 @@ if preset_up:
         st.sidebar.success("Preset carregado (aplica manualmente as escolhas na UI).")
     except Exception as e:
         st.sidebar.error(f"Preset inválido: {e}")
+
 
 
 
