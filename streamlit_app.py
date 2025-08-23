@@ -37,6 +37,43 @@ st.set_page_config(
 
 st.markdown("""
 <style>
+/* Sidebar mais compacta e colada ao topo */
+section[data-testid="stSidebar"] div[data-testid="stSidebarContent"]{
+  padding-top: 0px !important;
+}
+
+/* Largura consistente da sidebar (ajusta a gosto) */
+[data-testid="stSidebar"][aria-expanded="true"]{
+  min-width: 260px;
+  max-width: 260px;
+}
+
+/* Logo centrado e sem espaço extra */
+section[data-testid="stSidebar"] img{
+  display:block;
+  margin: -8px auto 6px auto;   /* topo, dir, baixo, esq */
+}
+
+/* Expanders mais “magros” */
+div[role="button"][data-baseweb="accordion"]{
+  padding: 2px 8px !important;
+}
+div[data-testid="stExpander"] div[role="button"] p{
+  margin: 4px 0 !important;
+}
+
+/* Linha separadora da sidebar com cor do clube */
+section[data-testid="stSidebar"] hr{
+  border: none;
+  border-top: 1px solid #e7e9ee;
+  margin: 14px 0;
+}
+</style>
+""", unsafe_allow_html=True)
+
+
+st.markdown("""
+<style>
 /* reduz o padding superior da sidebar */
 section[data-testid="stSidebar"] div[data-testid="stSidebarContent"] {
   padding-top: 0px !important;
@@ -630,6 +667,7 @@ if preset_up:
         st.sidebar.success("Preset carregado (aplica manualmente as escolhas na UI).")
     except Exception as e:
         st.sidebar.error(f"Preset inválido: {e}")
+
 
 
 
