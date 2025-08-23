@@ -151,7 +151,7 @@ if df is None:
 # Força nomes de colunas únicos no CSV carregado
 df.columns = make_unique(df.columns)
 
-st.sidebar.image("logo.png", use_container_width=True)
+st.sidebar.image("logo.png", width=150)
 
 # Pré‑visualização opcional
 show_preview = st.sidebar.checkbox("Mostrar pré‑visualização do CSV", value=False)
@@ -614,6 +614,7 @@ if preset_up:
         st.sidebar.success("Preset carregado (aplica manualmente as escolhas na UI).")
     except Exception as e:
         st.sidebar.error(f"Preset inválido: {e}")
+
 
 
 
