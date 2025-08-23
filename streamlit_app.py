@@ -169,6 +169,11 @@ contract_col   = guess(["contract","contrato","expiry","end"], default=None)
 
 st.sidebar.image("logo.png", height=80)
 
+import os
+st.sidebar.caption(f"cwd: {os.getcwd()}")
+st.sidebar.caption(f"files: {', '.join(os.listdir('.'))[:200]}...")
+
+
 st.sidebar.header("Mapeamento")
 name_col    = st.sidebar.selectbox("Nome do jogador", options=df.columns, index=list(df.columns).index(name_col))
 team_col    = st.sidebar.selectbox("Equipa (opcional)", options=["(não usar)"] + list(df.columns),
@@ -613,6 +618,7 @@ if preset_up:
         st.sidebar.success("Preset carregado (aplica manualmente as escolhas na UI).")
     except Exception as e:
         st.sidebar.error(f"Preset inválido: {e}")
+
 
 
 
