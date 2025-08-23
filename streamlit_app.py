@@ -167,7 +167,7 @@ minutes_col    = guess(["min","minutes","mins","minutos"])
 value_col      = guess(["market","valor","value","valormercado"], default=None)
 contract_col   = guess(["contract","contrato","expiry","end"], default=None)
 
-st.sidebar.image("Logo_Leixões.png", height=80)
+st.sidebar.image("logo.png", height=80)
 
 st.sidebar.header("Mapeamento")
 name_col    = st.sidebar.selectbox("Nome do jogador", options=df.columns, index=list(df.columns).index(name_col))
@@ -613,6 +613,7 @@ if preset_up:
         st.sidebar.success("Preset carregado (aplica manualmente as escolhas na UI).")
     except Exception as e:
         st.sidebar.error(f"Preset inválido: {e}")
+
 
 
 
