@@ -29,8 +29,8 @@ if not check_password():
     st.stop()
 
 st.set_page_config(
-    page_title="LSC Scouting",
-    page_icon="⚽",
+    page_title="LSC Scouting Tool",
+    page_icon="logo.png",
     layout="wide",
     initial_sidebar_state="expanded",
 )
@@ -674,6 +674,7 @@ if preset_up:
         st.sidebar.success("Preset carregado (aplica manualmente as escolhas na UI).")
     except Exception as e:
         st.sidebar.error(f"Preset inválido: {e}")
+
 
 
 
