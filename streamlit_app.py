@@ -35,6 +35,21 @@ st.set_page_config(
     initial_sidebar_state="expanded",
 )
 
+st.markdown("""
+<style>
+/* reduz o padding superior da sidebar */
+section[data-testid="stSidebar"] div[data-testid="stSidebarContent"] {
+  padding-top: 0px !important;
+}
+
+/* opcional: puxa o logo um pouco mais para cima e encosta-o ao centro */
+section[data-testid="stSidebar"] img {
+  display: block;
+  margin: -8px auto 4px auto;  /* topo, direita, baixo, esquerda */
+}
+</style>
+""", unsafe_allow_html=True)
+
 
 # CSS leve: esconde menu/rodapé e ajusta paddings
 st.markdown("""
@@ -615,6 +630,7 @@ if preset_up:
         st.sidebar.success("Preset carregado (aplica manualmente as escolhas na UI).")
     except Exception as e:
         st.sidebar.error(f"Preset inválido: {e}")
+
 
 
 
