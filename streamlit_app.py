@@ -615,8 +615,6 @@ for c in [c for c in out_fmt.columns if str(c).endswith("_pct")]:
 # --- ESTILO ---
 def _style_df(df_):
     sty = df_.style
-    if "score_0_100" in df_.columns:
-        sty = sty.background_gradient(subset=["score_0_100"], cmap="Greens")
     pct_cols = [c for c in df_.columns if str(c).endswith("_pct")]
     if pct_cols:
         sty = sty.background_gradient(subset=pct_cols, cmap="Blues")
@@ -672,6 +670,7 @@ if preset_up:
         st.sidebar.success("Preset carregado (aplica manualmente as escolhas na UI).")
     except Exception as e:
         st.sidebar.error(f"Preset inválido: {e}")
+
 
 
 
