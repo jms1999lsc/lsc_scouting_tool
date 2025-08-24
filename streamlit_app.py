@@ -632,7 +632,7 @@ def _style_df(df_):
         sty = sty.apply(warn_contract, subset=["contract_end"])
     return sty
 
-st.dataframe(_style_df(out_fmt), use_container_width=True)
+st.dataframe(_style_df(out_fmt), use_container_width=True, height=600)
 
 
 
@@ -670,6 +670,7 @@ if preset_up:
         st.sidebar.success("Preset carregado (aplica manualmente as escolhas na UI).")
     except Exception as e:
         st.sidebar.error(f"Preset inválido: {e}")
+
 
 
 
