@@ -193,7 +193,6 @@ with st.sidebar:
     )
     st.markdown("---")
 
-st.sidebar.markdown("---")                # separador fino
 
 # Pré‑visualização opcional
 show_preview = st.sidebar.checkbox("Mostrar pré-visualização do CSV", value=False)
@@ -673,6 +672,7 @@ if preset_up:
         st.sidebar.success("Preset carregado (aplica manualmente as escolhas na UI).")
     except Exception as e:
         st.sidebar.error(f"Preset inválido: {e}")
+
 
 
 
