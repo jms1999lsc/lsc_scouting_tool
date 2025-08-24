@@ -189,16 +189,25 @@ def make_unique(columns):
             new.append(c)
     return new
 
-# --- LOGO no topo da sidebar ---
-st.sidebar.markdown(
-    """
-    <div style="text-align:center; margin-top:-30px; margin-bottom:20px;">
-        <img src="logo.png" width="80"><br>
-        <h3 style="margin:5px 0; color:#bd0003;">Leixões SC</h3>
-    </div>
-    """,
-    unsafe_allow_html=True
-)
+
+# --- LOGO compacto e centrado (substitui o bloco anterior do logo) ---
+from pathlib import Path
+logo_path = Path(__file__).with_name("logo.png")  # precisa que o ficheiro se chame logo.png
+
+with st.sidebar:
+    # centrado e pequeno
+    _l, _c, _r = st.columns([1, 2, 1])
+    with _c:
+        if logo_path.exists():
+            st.image(str(logo_path), width=80)  # ajusta 60–100 a gosto
+        else:
+            st.caption("logo.png não encontrado")
+
+    st.markdown(
+        "<h3 style='text-align:center; color:#bd0003; margin-top:6px;'>Leixões SC</h3>",
+        unsafe_allow_html=True
+    )
+    st.markdown("---")
 
 st.sidebar.markdown("---")                # separador fino
 
@@ -680,6 +689,7 @@ if preset_up:
         st.sidebar.success("Preset carregado (aplica manualmente as escolhas na UI).")
     except Exception as e:
         st.sidebar.error(f"Preset inválido: {e}")
+
 
 
 
