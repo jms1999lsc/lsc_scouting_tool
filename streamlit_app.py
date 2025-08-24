@@ -199,7 +199,7 @@ with st.sidebar:
     _l, _c, _r = st.columns([1, 2, 1])
     with _c:
         if logo_path.exists():
-            st.image(str(logo_path), width=80)  # ajusta 60–100 a gosto
+            st.image(str(logo_path), width=10)  # ajusta 60–100 a gosto
         else:
             st.caption("logo.png não encontrado")
 
@@ -689,6 +689,7 @@ if preset_up:
         st.sidebar.success("Preset carregado (aplica manualmente as escolhas na UI).")
     except Exception as e:
         st.sidebar.error(f"Preset inválido: {e}")
+
 
 
 
