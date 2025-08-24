@@ -51,7 +51,7 @@ section[data-testid="stSidebar"] div[data-testid="stSidebarContent"]{
 /* Logo centrado e sem espaço extra */
 section[data-testid="stSidebar"] img{
   display:block;
-  margin: -8px auto 6px auto;   /* topo, dir, baixo, esq */
+  margin: -20px auto 6px auto;   /* topo, direita, baixo, esquerda */
 }
 
 /* Expanders mais “magros” */
@@ -67,22 +67,6 @@ section[data-testid="stSidebar"] hr{
   border: none;
   border-top: 1px solid #e7e9ee;
   margin: 14px 0;
-}
-</style>
-""", unsafe_allow_html=True)
-
-
-st.markdown("""
-<style>
-/* reduz o padding superior da sidebar */
-section[data-testid="stSidebar"] div[data-testid="stSidebarContent"] {
-  padding-top: 0px !important;
-}
-
-/* opcional: puxa o logo um pouco mais para cima e encosta-o ao centro */
-section[data-testid="stSidebar"] img {
-  display: block;
-  margin: -8px auto 4px auto;  /* topo, direita, baixo, esquerda */
 }
 </style>
 """, unsafe_allow_html=True)
@@ -689,6 +673,7 @@ if preset_up:
         st.sidebar.success("Preset carregado (aplica manualmente as escolhas na UI).")
     except Exception as e:
         st.sidebar.error(f"Preset inválido: {e}")
+
 
 
 
