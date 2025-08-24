@@ -51,7 +51,7 @@ section[data-testid="stSidebar"] div[data-testid="stSidebarContent"]{
 /* Logo centrado e sem espaço extra */
 section[data-testid="stSidebar"] img{
   display:block;
-  margin: -20px auto 6px auto;   /* topo, direita, baixo, esquerda */
+  margin: -40px auto 6px auto;   /* topo, direita, baixo, esquerda */
 }
 
 /* Expanders mais “magros” */
@@ -673,6 +673,7 @@ if preset_up:
         st.sidebar.success("Preset carregado (aplica manualmente as escolhas na UI).")
     except Exception as e:
         st.sidebar.error(f"Preset inválido: {e}")
+
 
 
 
