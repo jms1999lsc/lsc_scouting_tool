@@ -188,7 +188,7 @@ with st.sidebar:
             st.caption("logo.png não encontrado")
 
     st.markdown(
-        "<h3 style='text-align:center; color:#bd0003; margin-top:6px;'>Leixões SC</h3>",
+        "<h3 style='text-align:center; color:#bd0003; margin-top:6px;'>Leixões SC - Dept. Scouting</h3>",
         unsafe_allow_html=True
     )
     st.markdown("---")
@@ -670,6 +670,7 @@ if preset_up:
         st.sidebar.success("Preset carregado (aplica manualmente as escolhas na UI).")
     except Exception as e:
         st.sidebar.error(f"Preset inválido: {e}")
+
 
 
 
