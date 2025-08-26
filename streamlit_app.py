@@ -294,12 +294,26 @@ else:
     d_from = d_to = None
 
 # Idade (novo)
-if "_age" in dfw.columns and dfw["_age"].notna().any():
-    a_min = int(np.nanmin(dfw["_age"]))
-    a_max = int(np.nanmax(dfw["_age"]))
-    age_range = st.sidebar.slider("Idade", min_value=a_min, max_value=a_max, value=(a_min, a_max))
+# ---- IDADE (slider) ----
+if age_col != "(não usar)":
+    dfw["_age_num"] = pd.to_numeric(dfw[age_col], errors="coerce")
+    if dfw["_age_num"].notna().any():
+        a_min = int(np.nanmin(dfw["_age_num"]))
+        a_max = int(np.nanmax(dfw["_age_num"]))
+        # limites defensivos
+        a_min = max(15, a_min)
+        a_max = min(45, a_max)
+        age_range = st.sidebar.slider("Idade", min_value=a_min, max_value=a_max,
+                                      value=(a_min, a_max))
+    else:
+        age_range = None
 else:
     age_range = None
+
+# aplica idade diretamente em dfw (antes do perfil/etiquetas)
+if age_range and "_age_num" in dfw.columns:
+    dfw = dfw[dfw["_age_num"].between(age_range[0], age_range[1])].copy()
+
 
 # ----------------------- Perfis & defaults -----------------------
 KEYS = {
@@ -670,6 +684,7 @@ if preset_up:
         st.sidebar.success("Preset carregado (aplica manualmente as escolhas na UI).")
     except Exception as e:
         st.sidebar.error(f"Preset inválido: {e}")
+
 
 
 
