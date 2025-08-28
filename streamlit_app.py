@@ -278,7 +278,7 @@ if contract_col != "(não usar)":
 if "_market_value_flt" in dfw.columns:
     mv_ceiling = float(dfw["_market_value_flt"].max()) if np.isfinite(dfw["_market_value_flt"].max()) else 0.0
     mv_max_sel = st.sidebar.slider(
-        "Valor de mercado — máximo",
+        "Valor de Mercado",
         min_value=0.0,
         max_value=mv_ceiling,
         value=mv_ceiling,
@@ -692,6 +692,7 @@ if preset_up:
         st.sidebar.success("Preset carregado (aplica manualmente as escolhas na UI).")
     except Exception as e:
         st.sidebar.error(f"Preset inválido: {e}")
+
 
 
 
