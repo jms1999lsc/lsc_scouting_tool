@@ -267,24 +267,28 @@ if age_col != "(não usar)":
 # ---- VALOR DE MERCADO (igual ao que tinhas) ----
 if value_col != "(não usar)":
     dfw["_market_value"] = pd.to_numeric(dfw[value_col], errors="coerce")
+    dfw["_market_value_flt"] = dfw["_market_value"].fillna(0)  # <- NOVO (só para filtro)
 
 # ---- FIM DE CONTRATO (igual ao que tinhas) ----
 if contract_col != "(não usar)":
     dfw["_contract_end"] = dfw[contract_col].apply(to_date_any)
 
 # ----------------------- Controlo dos filtros (no mesmo grupo) -----------------------
-# Valor de mercado
-if "_market_value" in dfw.columns:
-    mv_min = 0.0  # força sempre mínimo = 0
-    mv_max = float(np.nanmax(dfw["_market_value"])) if np.isfinite(np.nanmax(dfw["_market_value"])) else 0.0
-    val_range = st.sidebar.slider(
-        "Valor de mercado",
-        min_value=mv_min,
-        max_value=mv_max,
-        value=(mv_min, mv_max)  # default cobre todo o range
+# Valor de mercado — filtro por MÁXIMO (inclui sem valor → tratados como 0)
+if "_market_value_flt" in dfw.columns:
+    mv_ceiling = float(dfw["_market_value_flt"].max()) if np.isfinite(dfw["_market_value_flt"].max()) else 0.0
+    mv_max_sel = st.sidebar.slider(
+        "Valor de mercado — máximo",
+        min_value=0.0,
+        max_value=mv_ceiling,
+        value=mv_ceiling,
     )
 else:
-    val_range = None
+    mv_max_sel = None
+
+if mv_max_sel is not None and "_market_value_flt" in dfw.columns:
+    dfw = dfw[dfw["_market_value_flt"] <= mv_max_sel].copy()
+
 
 # Fim de contrato
 if "_contract_end" in dfw.columns and dfw["_contract_end"].notna().any():
@@ -688,6 +692,7 @@ if preset_up:
         st.sidebar.success("Preset carregado (aplica manualmente as escolhas na UI).")
     except Exception as e:
         st.sidebar.error(f"Preset inválido: {e}")
+
 
 
 
