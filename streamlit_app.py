@@ -277,7 +277,7 @@ if contract_col != "(não usar)":
 if "_market_value" in dfw.columns:
     mv_min = float(np.nanmin(dfw["_market_value"])) if np.isfinite(np.nanmin(dfw["_market_value"])) else 0.0
     mv_max = float(np.nanmax(dfw["_market_value"])) if np.isfinite(np.nanmax(dfw["_market_value"])) else 0.0
-    val_range = st.sidebar.slider("Valor de mercado", min_value=0, max_value=float(mv_max),
+    val_range = st.sidebar.slider("Valor de mercado", min_value=float(mv_min), max_value=float(mv_max),
                                   value=(float(mv_min), float(mv_max)))
 else:
     val_range = None
@@ -684,6 +684,7 @@ if preset_up:
         st.sidebar.success("Preset carregado (aplica manualmente as escolhas na UI).")
     except Exception as e:
         st.sidebar.error(f"Preset inválido: {e}")
+
 
 
 
