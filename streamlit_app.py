@@ -4,6 +4,8 @@ from collections import defaultdict
 import numpy as np
 import pandas as pd
 import streamlit as st
+from st_aggrid import AgGrid, GridOptionsBuilder, ColumnsAutoSizeMode
+
 
 # ---- PASSWORD LOGIN ----
 def check_password():
@@ -664,8 +666,27 @@ def _style_df(df_):
         sty = sty.apply(warn_contract, subset=["contract_end"])
     return sty
 
-st.dataframe(_style_df(out_fmt), use_container_width=True, height=600)
+# ---- Tabela com filtros por coluna (inclui filtro de texto em "Name") ----
+gb = GridOptionsBuilder.from_dataframe(out)
 
+# filtros em todas as colunas + “caixinha” de filtro no header (floatingFilter)
+gb.configure_default_column(
+    filter=True, sortable=True, resizable=True, floatingFilter=True
+)
+
+# garante filtro de TEXTO na coluna Nome (case-insensitive)
+gb.configure_column(str(name_col), filter="agTextColumnFilter")
+
+# (opcional) auto-size agradável
+go = gb.build()
+
+AgGrid(
+    out,
+    gridOptions=go,
+    theme="balham",                         # tema claro
+    columns_auto_size_mode=ColumnsAutoSizeMode.FIT_CONTENTS,
+    height=600
+)
 
 
 # Exportações
@@ -702,6 +723,7 @@ if preset_up:
         st.sidebar.success("Preset carregado (aplica manualmente as escolhas na UI).")
     except Exception as e:
         st.sidebar.error(f"Preset inválido: {e}")
+
 
 
 
