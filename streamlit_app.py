@@ -324,16 +324,6 @@ else:
 if age_range and "_age_num" in dfw.columns:
     dfw = dfw[dfw["_age_num"].between(age_range[0], age_range[1])].copy()
 
-# ---- Filtro por nome (caixa de pesquisa) ----
-search_name = st.sidebar.text_input("🔍 Procurar jogador por nome", "")
-if search_name:
-    dfp = dfp[dfp[name_col].astype(str).str.contains(search_name, case=False, na=False)].copy()
-
-# Se não houver resultados, para aqui
-if dfp.empty:
-    st.warning(f"Nenhum jogador encontrado com '{search_name}'.")
-    st.stop()
-
 
 # ----------------------- Perfis & defaults -----------------------
 KEYS = {
@@ -723,6 +713,7 @@ if preset_up:
         st.sidebar.success("Preset carregado (aplica manualmente as escolhas na UI).")
     except Exception as e:
         st.sidebar.error(f"Preset inválido: {e}")
+
 
 
 
