@@ -402,7 +402,9 @@ unique_pos_vals = sorted(map(str, dfw[pos_col].dropna().unique().tolist()))
 profile_labels = st.sidebar.multiselect(
     f"Etiquetas (posições) associadas a '{profile}'",
     options=unique_pos_vals,
-    default=unique_pos_vals[:1]
+    default=[],                           # <- nada selecionado por defeito
+    placeholder="Seleciona uma ou mais posições…",
+    key=f"labels_{profile}"               # <- reinicia quando mudas o perfil
 )
 
 # Métricas (5) + override "já é per90/%"
@@ -491,7 +493,10 @@ for col, is_norm in zip(metric_slots, already_norm_flags):
         per90_cols.append(out_col)
 
 # ----------------------- Ranking -----------------------
-mask_pos = dfw[pos_col].astype(str).isin(profile_labels) if profile_labels else pd.Series(False, index=dfw.index)
+if profile_labels:
+    mask_pos = dfw[pos_col].astype(str).isin(profile_labels)
+else:
+    mask_pos = pd.Series(True, index=dfw.index)   # <- sem seleção = todas as posições
 dfp = dfw[mask_pos].copy()
 
 for met in set(per90_cols):
@@ -800,6 +805,7 @@ if preset_up:
         st.sidebar.success("Preset carregado (aplica manualmente as escolhas na UI).")
     except Exception as e:
         st.sidebar.error(f"Preset inválido: {e}")
+
 
 
 
