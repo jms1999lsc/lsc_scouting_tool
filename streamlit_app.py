@@ -694,6 +694,29 @@ function(p){
 }
 """)
 
+# Vermelho suave se expira ≤ 365 dias; mais forte se já expirou
+cell_contract_warn = JsCode("""
+function(p){
+  if (!p.value) return {};
+  // p.value vem em "YYYY-MM-DD" (ou ISO). O Date lê ISO direto.
+  var d = new Date(p.value);
+  if (isNaN(d)) return {};
+  var today = new Date();
+  // diferença em dias
+  var diffDays = (d - today) / (1000*60*60*24);
+
+  // expirado
+  if (diffDays < 0) {
+    return {'backgroundColor':'#ffd6d6', 'color':'#7a0000'}; // vermelho + forte
+  }
+  // expira dentro de 12 meses
+  if (diffDays <= 365) {
+    return {'backgroundColor':'#ffecec', 'color':'#7a0000'}; // vermelho suave
+  }
+  return {};
+}
+""")
+
 # 3) GridOptions
 gb = GridOptionsBuilder.from_dataframe(table)
 gb.configure_default_column(filter=True, sortable=True, resizable=True, floatingFilter=True)
@@ -717,6 +740,10 @@ if "score_0_100" in table.columns:
 for c in table.columns:
     if str(c).endswith("_pct"):
         gb.configure_column(c, valueFormatter=fmt_1dec, cellStyle=cell_blue_grad)
+
+if "contract_end" in table.columns:
+    gb.configure_column("contract_end", cellStyle=cell_contract_warn)
+
 
 go = gb.build()
 
@@ -766,6 +793,7 @@ if preset_up:
         st.sidebar.success("Preset carregado (aplica manualmente as escolhas na UI).")
     except Exception as e:
         st.sidebar.error(f"Preset inválido: {e}")
+
 
 
 
