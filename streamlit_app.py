@@ -656,41 +656,78 @@ def _style_df(df_):
         sty = sty.apply(warn_contract, subset=["contract_end"])
     return sty
 
-# ---- Tabela com filtros por coluna (inclui filtro de texto em "Name") ----
-gb = GridOptionsBuilder.from_dataframe(out)
+# ================== TABELA (AgGrid) COM FORMATAÇÃO ==================
+# 1) Preparar uma cópia para formatar colunas “de exibição”
+table = out.copy()
 
-# filtros em todas as colunas + “caixinha” de filtro no header (floatingFilter)
-gb.configure_default_column(
-    filter=True, sortable=True, resizable=True, floatingFilter=True
-)
+# Datas limpas (YYYY-MM-DD)
+if "contract_end" in table.columns:
+    table["contract_end"] = pd.to_datetime(table["contract_end"], errors="coerce").dt.strftime("%Y-%m-%d")
 
-# garante filtro de TEXTO na coluna Nome (case-insensitive)
+# 2) Formatters JS (AgGrid)
+fmt_3dec = JsCode("function(p){ if(p.value==null) return ''; return Number(p.value).toFixed(3); }")
+fmt_1dec = JsCode("function(p){ if(p.value==null) return ''; return Number(p.value).toFixed(1); }")
+
+# Divergente para 'score' (azul = positivo, vermelho = negativo)
+cell_divergent = JsCode("""
+function(p){
+  if (p.value == null) return {};
+  const v = Number(p.value);
+  const clip = Math.max(-3, Math.min(3, v));     // limita a [-3, 3]
+  const hue  = (clip >= 0) ? 210 : 0;            // 210=azul, 0=vermelho
+  const light = 100 - (Math.abs(clip)/3)*60;     // 100→40
+  const color = `hsl(${hue}, 82%, ${light}%)`;
+  const txt   = (light < 55) ? 'white' : 'black';
+  return {'backgroundColor': color, 'color': txt};
+}
+""")
+
+# Gradiente para percentis/score_0_100 (azul mais forte = maior)
+cell_blue_grad = JsCode("""
+function(p){
+  if (p.value == null) return {};
+  const v = Math.max(0, Math.min(100, Number(p.value)));
+  const light = 100 - v*0.5;                     // 100→50
+  const color = `hsl(210, 85%, ${light}%)`;
+  const txt   = (light < 55) ? 'white' : 'black';
+  return {'backgroundColor': color, 'color': txt};
+}
+""")
+
+# 3) GridOptions
+gb = GridOptionsBuilder.from_dataframe(table)
+gb.configure_default_column(filter=True, sortable=True, resizable=True, floatingFilter=True)
+
+# Garantir filtro de texto em Name
 gb.configure_column(str(name_col), filter="agTextColumnFilter")
 
-# (opcional) auto-size agradável
-go = gb.build()
+# Alinhar números à direita
+for c in table.columns:
+    if pd.api.types.is_numeric_dtype(table[c]):
+        gb.configure_column(c, type=["rightAligned"])
 
-# ---- Tabela com filtros por coluna (inclui filtro de texto em "Name") ----
-gb = GridOptionsBuilder.from_dataframe(out)
+# Formatação e estilos nas colunas-chave
+if "score" in table.columns:
+    gb.configure_column("score", valueFormatter=fmt_3dec, cellStyle=cell_divergent)
 
-# filtros em todas as colunas + “caixinha” de filtro no header (floatingFilter)
-gb.configure_default_column(
-    filter=True, sortable=True, resizable=True, floatingFilter=True
-)
+if "score_0_100" in table.columns:
+    gb.configure_column("score_0_100", valueFormatter=fmt_1dec, cellStyle=cell_blue_grad)
 
-# garante filtro de TEXTO na coluna Nome (case-insensitive)
-gb.configure_column(str(name_col), filter="agTextColumnFilter")
+# Qualquer coluna *percentil* (_pct) recebe 1 decimal + gradiente azul
+for c in table.columns:
+    if str(c).endswith("_pct"):
+        gb.configure_column(c, valueFormatter=fmt_1dec, cellStyle=cell_blue_grad)
 
-# (opcional) auto-size agradável
 go = gb.build()
 
 AgGrid(
-    out,
+    table,
     gridOptions=go,
-    theme="balham",                         # tema claro
+    theme="balham",   # tema claro
     columns_auto_size_mode=ColumnsAutoSizeMode.FIT_CONTENTS,
     height=600
 )
+# ================== /TABELA (AgGrid) ==================
 
 
 # Exportações
@@ -727,6 +764,7 @@ if preset_up:
         st.sidebar.success("Preset carregado (aplica manualmente as escolhas na UI).")
     except Exception as e:
         st.sidebar.error(f"Preset inválido: {e}")
+
 
 
 
