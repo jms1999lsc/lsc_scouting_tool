@@ -560,6 +560,20 @@ dfp["_sample_quality"] = dfp.apply(_sample_quality_row, axis=1)
 # ----------------------- Output (único, dedup robusto) -----------------------
 # --- KPIs rápidos ---
 k1, k2, k3, k4 = st.columns([1,1,1,1])
+# ---- util para obter série de datas de contrato, qualquer que seja o nome da coluna
+def _contract_series(df):
+    if "contract_end" in df.columns:
+        return pd.to_datetime(df["contract_end"], errors="coerce")
+    if "_contract_end" in df.columns:
+        return pd.to_datetime(df["_contract_end"], errors="coerce")
+    return None
+
+_s_contract = _contract_series(dfp)
+if _s_contract is not None:
+    _days = (_s_contract - pd.Timestamp.today().normalize()).dt.days
+    _n_expiring = int((_days <= 365).sum())
+else:
+    _n_expiring = 0
 k1.metric("Jogadores", f"{len(dfp):,}".replace(",","."))
 if age_col != "(não usar)" and age_col in dfp.columns:
     k2.metric("Idade média", f"{pd.to_numeric(dfp[age_col], errors='coerce').mean():.1f}")
@@ -567,7 +581,7 @@ else:
     k2.metric("Idade média", "—")
 if "contract_end" in dfp.columns:
     _days = (pd.to_datetime(dfp["contract_end"], errors="coerce") - pd.Timestamp.today()).dt.days
-    k3.metric("Contrato < 12 meses", int((_days <= 365).sum()))
+    k3.metric("Contrato < 12 meses", _n_expiring)
 else:
     k3.metric("Contrato < 12 meses", 0)
 k4.metric("Perfil", profile)
@@ -807,11 +821,15 @@ if "contract_end" in table.columns:
     gb.configure_column("contract_end", cellStyle=cell_contract_warn)
 
 # colunas pinadas + sort padrão
+# colunas pinadas + sort padrão
 pin_cols = [str(name_col)]
+if "_sample_quality" in table.columns:
+    pin_cols.append("_sample_quality")    # <- pin badge
 for c in [team_col, pos_col]:
     if c and c in table.columns and c not in pin_cols:
         pin_cols.append(c)
 gb.configure_columns(pin_cols, pinned=True)
+
 if "score" in table.columns:
     gb.configure_column("score", sort="desc")
 
@@ -884,6 +902,7 @@ if preset_up:
         st.sidebar.success("Preset carregado (aplica manualmente as escolhas na UI).")
     except Exception as e:
         st.sidebar.error(f"Preset inválido: {e}")
+
 
 
 
