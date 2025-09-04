@@ -5,6 +5,7 @@ import numpy as np
 import pandas as pd
 import streamlit as st
 from st_aggrid import AgGrid, GridOptionsBuilder, ColumnsAutoSizeMode, JsCode
+import altair as alt
 
 
 # ---- PASSWORD LOGIN ----
@@ -718,24 +719,23 @@ def _style_df(df_):
         sty = sty.apply(warn_contract, subset=["contract_end"])
     return sty
 
-# ================== TABELA (AgGrid) COM FORMATAÇÃO ==================
-# 1) Preparar uma cópia para formatar colunas “de exibição”
+# ================== TABELA (AgGrid) COM FORMATAÇÃO + TABS ==================
+# 1) Preparar cópia para formatação
 table = out.copy()
 
-# Datas limpas (YYYY-MM-DD)
+# Datas human-readable
 if "contract_end" in table.columns:
     table["contract_end"] = pd.to_datetime(table["contract_end"], errors="coerce").dt.strftime("%Y-%m-%d")
 
-# 2) Formatters JS (AgGrid)
+# Formatters / cell styles
 fmt_3dec = JsCode("function(p){ if(p.value==null) return ''; return Number(p.value).toFixed(3); }")
 fmt_1dec = JsCode("function(p){ if(p.value==null) return ''; return Number(p.value).toFixed(1); }")
 
-# Divergente para 'score' (azul = positivo, vermelho = negativo)
 cell_divergent = JsCode("""
 function(p){
   if (p.value == null) return {};
   const v = Number(p.value);
-  const clip = Math.max(-3, Math.min(3, v));     // limita a [-3, 3]
+  const clip = Math.max(-3, Math.min(3, v));
   const hue  = (clip >= 0) ? 210 : 0;            // 210=azul, 0=vermelho
   const light = 100 - (Math.abs(clip)/3)*60;     // 100→40
   const color = `hsl(${hue}, 82%, ${light}%)`;
@@ -744,7 +744,6 @@ function(p){
 }
 """)
 
-# Gradiente para percentis/score_0_100 (azul mais forte = maior)
 cell_blue_grad = JsCode("""
 function(p){
   if (p.value == null) return {};
@@ -756,87 +755,104 @@ function(p){
 }
 """)
 
-# Vermelho suave se expira ≤ 365 dias; mais forte se já expirou
 cell_contract_warn = JsCode("""
 function(p){
   if (!p.value) return {};
-  // p.value vem em "YYYY-MM-DD" (ou ISO). O Date lê ISO direto.
   var d = new Date(p.value);
   if (isNaN(d)) return {};
   var today = new Date();
-  // diferença em dias
   var diffDays = (d - today) / (1000*60*60*24);
-
-  // expirado
   if (diffDays < 0) {
-    return {'backgroundColor':'#ffd6d6', 'color':'#7a0000'}; // vermelho + forte
+    return {'backgroundColor':'#ffd6d6', 'color':'#7a0000'};   // expirado
   }
-  // expira dentro de 12 meses
   if (diffDays <= 365) {
-    return {'backgroundColor':'#ffecec', 'color':'#7a0000'}; // vermelho suave
+    return {'backgroundColor':'#ffecec', 'color':'#7a0000'};   // < 12m
   }
   return {};
 }
 """)
 
-# 3) GridOptions
+# 2) GridOptions
 gb = GridOptionsBuilder.from_dataframe(table)
 gb.configure_default_column(filter=True, sortable=True, resizable=True, floatingFilter=True)
 
-# Garantir filtro de texto em Name
-gb.configure_column(str(name_col), filter="agTextColumnFilter")
-
-# Alinhar números à direita
-for c in table.columns:
-    if pd.api.types.is_numeric_dtype(table[c]):
-        gb.configure_column(c, type=["rightAligned"])
-
-# Formatação e estilos nas colunas-chave
-if "score" in table.columns:
-    gb.configure_column("score", valueFormatter=fmt_3dec, cellStyle=cell_divergent)
-
-if "score_0_100" in table.columns:
-    gb.configure_column("score_0_100", valueFormatter=fmt_1dec, cellStyle=cell_blue_grad)
-
-# Qualquer coluna *percentil* (_pct) recebe 1 decimal + gradiente azul
-for c in table.columns:
-    if str(c).endswith("_pct"):
-        gb.configure_column(c, valueFormatter=fmt_1dec, cellStyle=cell_blue_grad)
-
-if "contract_end" in table.columns:
-    gb.configure_column("contract_end", cellStyle=cell_contract_warn)
-
+# tooltips principais
 tooltips = {}
 tooltips[str(name_col)] = "Nome do jogador"
-if team_col!="(não usar)": tooltips[team_col] = "Equipa / Clube"
-tooltips["score"] = "Soma ponderada de z-scores (negativo/positivo)"
-tooltips["score_0_100"] = "Percentil do score dentro do conjunto filtrado"
-tooltips["contract_end"] = "Data do fim de contrato (vermelho = < 12 meses ou expirado)"
-
+if team_col != "(não usar)" and team_col in table.columns:
+    tooltips[team_col] = "Equipa / Clube"
+if "score" in table.columns:
+    tooltips["score"] = "Soma ponderada de z-scores (negativo/positivo)"
+if "score_0_100" in table.columns:
+    tooltips["score_0_100"] = "Percentil do score dentro do conjunto filtrado"
+if "contract_end" in table.columns:
+    tooltips["contract_end"] = "Fim de contrato (vermelho = < 12 meses ou expirado)"
 for col, tip in tooltips.items():
     if col in table.columns:
         gb.configure_column(col, headerTooltip=tip, tooltipField=col)
 
+# filtro de texto explícito em Name
+gb.configure_column(str(name_col), filter="agTextColumnFilter")
+
+# alinhamento numérico à direita
+for c in table.columns:
+    if pd.api.types.is_numeric_dtype(table[c]):
+        gb.configure_column(c, type=["rightAligned"])
+
+# formatação e cores
+if "score" in table.columns:
+    gb.configure_column("score", valueFormatter=fmt_3dec, cellStyle=cell_divergent)
+if "score_0_100" in table.columns:
+    gb.configure_column("score_0_100", valueFormatter=fmt_1dec, cellStyle=cell_blue_grad)
+for c in table.columns:
+    if str(c).endswith("_pct"):
+        gb.configure_column(c, valueFormatter=fmt_1dec, cellStyle=cell_blue_grad)
+if "contract_end" in table.columns:
+    gb.configure_column("contract_end", cellStyle=cell_contract_warn)
+
+# colunas pinadas + sort padrão
+pin_cols = [str(name_col)]
+for c in [team_col, pos_col]:
+    if c and c in table.columns and c not in pin_cols:
+        pin_cols.append(c)
+gb.configure_columns(pin_cols, pinned=True)
+if "score" in table.columns:
+    gb.configure_column("score", sort="desc")
+
 go = gb.build()
 
-# Faz autofit das colunas automaticamente
-go["onFirstDataRendered"] = JsCode("""
-function(params) {
-    params.api.sizeColumnsToFit();
-}
-""")
+# pesquisa global (quick filter) e autofit em render/resize
+q = st.text_input("🔎 Pesquisa global na tabela", "", placeholder="Nome, equipa, liga…")
+if q:
+    go["quickFilterText"] = q
+go["onFirstDataRendered"] = JsCode("function(p){p.api.sizeColumnsToFit();}")
+go["onGridSizeChanged"]   = JsCode("function(p){p.api.sizeColumnsToFit();}")
 
-AgGrid(
-    table,
-    gridOptions=go,
-    theme="balham",                       # tema claro
-    # columns_auto_size_mode=ColumnsAutoSizeMode.FIT_CONTENTS,  # opcional
-    height=650,
-    allow_unsafe_jscode=True              # <- NECESSÁRIO quando usas JsCode
-)
+# 3) Tabs: Ranking / Gráficos rápidos
+tab1, tab2 = st.tabs(["📊 Ranking", "📈 Gráficos rápidos"])
+with tab1:
+    AgGrid(
+        table,
+        gridOptions=go,
+        theme="balham",
+        height=600,
+        allow_unsafe_jscode=True
+    )
 
+with tab2:
+    # gráfico simples: distribuição do score ou percentis
+    _opts = [c for c in table.columns if c in ("score","score_0_100") or str(c).endswith("_pct")]
+    if _opts:
+        sel = st.selectbox("Distribuição de:", _opts, index=0)
+        chart = alt.Chart(table).mark_bar().encode(
+            x=alt.X(f"{sel}:Q", bin=alt.Bin(maxbins=30)),
+            y='count()',
+            tooltip=[str(name_col), sel]
+        ).properties(height=320)
+        st.altair_chart(chart, use_container_width=True)
+    else:
+        st.info("Sem colunas numéricas selecionáveis para gráfico.")
 # ================== /TABELA (AgGrid) ==================
-
 
 # Exportações
 csv_bytes = out.to_csv(index=False).encode("utf-8")
@@ -872,6 +888,7 @@ if preset_up:
         st.sidebar.success("Preset carregado (aplica manualmente as escolhas na UI).")
     except Exception as e:
         st.sidebar.error(f"Preset inválido: {e}")
+
 
 
 
