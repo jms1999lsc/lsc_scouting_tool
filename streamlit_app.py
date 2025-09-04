@@ -557,6 +557,20 @@ def _sample_quality_row(row):
 dfp["_sample_quality"] = dfp.apply(_sample_quality_row, axis=1)
 
 # ----------------------- Output (único, dedup robusto) -----------------------
+# --- KPIs rápidos ---
+k1, k2, k3, k4 = st.columns([1,1,1,1])
+k1.metric("Jogadores", f"{len(dfp):,}".replace(",","."))
+if age_col != "(não usar)" and age_col in dfp.columns:
+    k2.metric("Idade média", f"{pd.to_numeric(dfp[age_col], errors='coerce').mean():.1f}")
+else:
+    k2.metric("Idade média", "—")
+if "contract_end" in dfp.columns:
+    _days = (pd.to_datetime(dfp["contract_end"], errors="coerce") - pd.Timestamp.today()).dt.days
+    k3.metric("Contrato < 12 meses", int((_days <= 365).sum()))
+else:
+    k3.metric("Contrato < 12 meses", 0)
+k4.metric("Perfil", profile)
+st.markdown("<hr>", unsafe_allow_html=True)
 # Ordem base: Nome, Equipa, Posição, Divisão, Idade, Minutos, extras, Scores, Métricas(+pct)
 show_cols = [name_col]
 # inserir a badge de qualidade logo a seguir ao nome
@@ -658,7 +672,10 @@ def _style_df(df_):
 
     
 st.caption("Score bruto = soma(peso × z‑score). Score (0–100) = percentil do score dentro do conjunto filtrado.")
-# ... código acima que prepara o "out" ...
+# --- Chips das métricas e pesos ---
+st.caption("Métricas ativas:")
+_chips_html = " ".join([f"<span class='badge'>{m} · {w:.2f}</span>" for m, w in weights.items()])
+st.markdown(_chips_html, unsafe_allow_html=True)
 
 # ... código acima que prepara o "out" ...
 
@@ -855,6 +872,7 @@ if preset_up:
         st.sidebar.success("Preset carregado (aplica manualmente as escolhas na UI).")
     except Exception as e:
         st.sidebar.error(f"Preset inválido: {e}")
+
 
 
 
