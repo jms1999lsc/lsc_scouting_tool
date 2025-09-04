@@ -370,6 +370,22 @@ PROFILES = {
  "Ponta de Lança Referência":   ["xg","shots","aerial_won","touches_box","key_passes"],
 }
 
+# Sugerir etiquetas (posições) por Perfil
+PROFILE_TO_LABELS = {
+    "Guarda Redes":                ["GK"],
+    "Guarda Redes construtor":     ["GK"],
+    "Lateral Profundo":            ["DL", "DML", "DR", "DMR"],
+    "Lateral Associativo":         ["DL", "DML", "DR", "DMR"],
+    "Defesa Central":              ["DC"],
+    "Defesa Central com Bola":     ["DC"],
+    "Médio Defensivo":             ["DMC", "MC"],
+    "Médio Defensivo Construtor":  ["DMC", "MC"],
+    "Médio Centro Progressivo":    ["MC", "AMC", "DMC"],
+    "Extremo":                     ["FWL", "AML", "ML", "FWD", "AMR", "MR"],
+    "Ponta de Lança":              ["FW"],
+    "Ponta de Lança Referência":   ["FW"],
+}
+
 # Candidatos de métricas = todas as colunas à direita de "Minutos"
 cols_order = list(dfw.columns)
 try:
@@ -399,12 +415,21 @@ st.sidebar.markdown("---")
 st.sidebar.subheader("Perfil / Etiquetas")
 profile = st.sidebar.selectbox("Perfil a ranquear", list(PROFILES.keys()))
 unique_pos_vals = sorted(map(str, dfw[pos_col].dropna().unique().tolist()))
+
+# Valores disponíveis na coluna de posição
+unique_pos_vals = sorted(map(str, dfw[pos_col].dropna().unique().tolist()))
+
+# Sugestões automáticas para o perfil atual (intersetadas com o que existe no CSV)
+suggested = PROFILE_TO_LABELS.get(profile, [])
+default_labels = [x for x in suggested if x in unique_pos_vals]
+
+# Multiselect (reinicia quando mudas o perfil; podes editar livremente)
 profile_labels = st.sidebar.multiselect(
     f"Etiquetas (posições) associadas a '{profile}'",
     options=unique_pos_vals,
-    default=[],                           # <- nada selecionado por defeito
+    default=default_labels,                # <- preenchido pelas sugestões do perfil
     placeholder="Seleciona uma ou mais posições…",
-    key=f"labels_{profile}"               # <- reinicia quando mudas o perfil
+    key=f"labels_{profile}"               # <- força reset ao mudar de perfil
 )
 
 # Métricas (5) + override "já é per90/%"
@@ -805,6 +830,7 @@ if preset_up:
         st.sidebar.success("Preset carregado (aplica manualmente as escolhas na UI).")
     except Exception as e:
         st.sidebar.error(f"Preset inválido: {e}")
+
 
 
 
