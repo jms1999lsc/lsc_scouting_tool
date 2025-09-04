@@ -723,10 +723,12 @@ go = gb.build()
 AgGrid(
     table,
     gridOptions=go,
-    theme="balham",   # tema claro
-    columns_auto_size_mode=ColumnsAutoSizeMode.FIT_CONTENTS,
-    height=600
+    theme="balham",                       # tema claro
+    # columns_auto_size_mode=ColumnsAutoSizeMode.FIT_CONTENTS,  # opcional
+    height=600,
+    allow_unsafe_jscode=True              # <- NECESSÁRIO quando usas JsCode
 )
+
 # ================== /TABELA (AgGrid) ==================
 
 
