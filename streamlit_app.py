@@ -673,10 +673,6 @@ def _style_df(df_):
 
     
 st.caption("Score bruto = soma(peso × z‑score). Score (0–100) = percentil do score dentro do conjunto filtrado.")
-# --- Chips das métricas e pesos ---
-st.caption("Métricas ativas:")
-_chips_html = " ".join([f"<span class='badge'>{m} · {w:.2f}</span>" for m, w in weights.items()])
-st.markdown(_chips_html, unsafe_allow_html=True)
 
 # ... código acima que prepara o "out" ...
 
@@ -888,6 +884,7 @@ if preset_up:
         st.sidebar.success("Preset carregado (aplica manualmente as escolhas na UI).")
     except Exception as e:
         st.sidebar.error(f"Preset inválido: {e}")
+
 
 
 
