@@ -543,9 +543,25 @@ dfp["score"] = sum(
 )
 dfp["score_0_100"] = (dfp["score"].rank(pct=True) * 100).round(1)
 
+# --- Badge simples de qualidade de amostra (🟩/🟨/🟥) ---
+def _sample_quality_row(row):
+    mins_ok = pd.to_numeric(row[minutes_col], errors="coerce") >= 900
+    # heurística leve: se existir pelo menos 1 coluna *_pct, damos mais 1 ponto
+    pct_cols = [c for c in dfp.columns if str(c).endswith("_pct")]
+    pct_ok = len(pct_cols) > 0
+    score = int(mins_ok) + int(pct_ok)  # 0..2
+    if score >= 2: return "🟩"
+    if score == 1: return "🟨"
+    return "🟥"
+
+dfp["_sample_quality"] = dfp.apply(_sample_quality_row, axis=1)
+
 # ----------------------- Output (único, dedup robusto) -----------------------
 # Ordem base: Nome, Equipa, Posição, Divisão, Idade, Minutos, extras, Scores, Métricas(+pct)
 show_cols = [name_col]
+# inserir a badge de qualidade logo a seguir ao nome
+if "_sample_quality" in dfp.columns and "_sample_quality" not in show_cols:
+    show_cols.insert(1, "_sample_quality")
 if team_col != "(não usar)":
     show_cols.append(team_col)
 show_cols.append(pos_col)
@@ -839,6 +855,7 @@ if preset_up:
         st.sidebar.success("Preset carregado (aplica manualmente as escolhas na UI).")
     except Exception as e:
         st.sidebar.error(f"Preset inválido: {e}")
+
 
 
 
