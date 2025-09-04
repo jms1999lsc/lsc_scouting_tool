@@ -37,29 +37,39 @@ st.set_page_config(
     initial_sidebar_state="expanded",
 )
 
-# --- THEME / ESTILO GLOBAL ---
 st.markdown("""
 <style>
-:root{
-  --accent:#bd0003;
+/* Sidebar mais compacta e colada ao topo */
+section[data-testid="stSidebar"] div[data-testid="stSidebarContent"]{
+  padding-top: 0px !important;
 }
-[data-testid="stSidebar"] h2, h1,h2,h3 { letter-spacing:.2px }
-.stButton>button, .stDownloadButton>button{
-  border-radius:10px!important; padding:.5rem .9rem!important;
-  border:1px solid var(--accent)!important; color:var(--accent)!important; background:#fff!important;
+
+/* Largura consistente da sidebar (ajusta a gosto) */
+[data-testid="stSidebar"][aria-expanded="true"]{
+  min-width: 260px;
+  max-width: 260px;
 }
-.stButton>button:hover, .stDownloadButton>button:hover{
-  background:rgba(189,0,3,.06)!important;
+
+/* Logo centrado e sem espaço extra */
+section[data-testid="stSidebar"] img{
+  display:block;
+  margin: -50px auto 6px auto;   /* topo, direita, baixo, esquerda */
 }
-section[data-testid="stSidebar"] .stSlider [data-baseweb="slider"]>div>div{
-  background:var(--accent)!important;
+
+/* Expanders mais “magros” */
+div[role="button"][data-baseweb="accordion"]{
+  padding: 2px 8px !important;
 }
-section[data-testid="stSidebar"] hr{ border:none; border-top:1px solid #e9edf3; margin:.8rem 0;}
-/* títulos da sidebar mais puxados */
-section[data-testid="stSidebar"] h3{ margin-top:0.6rem; margin-bottom:.2rem;}
-/* badges simples */
-.badge{display:inline-block;padding:.12rem .45rem;border-radius:10px;font-size:.78rem;background:#f4f6fa;color:#3b4252;border:1px solid #e6eaf0}
-.badge-red{background:#ffecec;border-color:#ffd4d4;color:#7a0000}
+div[data-testid="stExpander"] div[role="button"] p{
+  margin: 4px 0 !important;
+}
+
+/* Linha separadora da sidebar com cor do clube */
+section[data-testid="stSidebar"] hr{
+  border: none;
+  border-top: 1px solid #e7e9ee;
+  margin: 14px 0;
+}
 </style>
 """, unsafe_allow_html=True)
 
@@ -829,6 +839,7 @@ if preset_up:
         st.sidebar.success("Preset carregado (aplica manualmente as escolhas na UI).")
     except Exception as e:
         st.sidebar.error(f"Preset inválido: {e}")
+
 
 
 
