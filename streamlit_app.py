@@ -747,6 +747,13 @@ if "contract_end" in table.columns:
 
 go = gb.build()
 
+# Faz autofit das colunas automaticamente
+go["onFirstDataRendered"] = JsCode("""
+function(params) {
+    params.api.sizeColumnsToFit();
+}
+""")
+
 AgGrid(
     table,
     gridOptions=go,
@@ -793,6 +800,7 @@ if preset_up:
         st.sidebar.success("Preset carregado (aplica manualmente as escolhas na UI).")
     except Exception as e:
         st.sidebar.error(f"Preset inválido: {e}")
+
 
 
 
