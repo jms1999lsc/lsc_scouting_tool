@@ -774,6 +774,16 @@ for c in table.columns:
 if "contract_end" in table.columns:
     gb.configure_column("contract_end", cellStyle=cell_contract_warn)
 
+tooltips = {}
+tooltips[str(name_col)] = "Nome do jogador"
+if team_col!="(não usar)": tooltips[team_col] = "Equipa / Clube"
+tooltips["score"] = "Soma ponderada de z-scores (negativo/positivo)"
+tooltips["score_0_100"] = "Percentil do score dentro do conjunto filtrado"
+tooltips["contract_end"] = "Data do fim de contrato (vermelho = < 12 meses ou expirado)"
+
+for col, tip in tooltips.items():
+    if col in table.columns:
+        gb.configure_column(col, headerTooltip=tip, tooltipField=col)
 
 go = gb.build()
 
@@ -830,6 +840,7 @@ if preset_up:
         st.sidebar.success("Preset carregado (aplica manualmente as escolhas na UI).")
     except Exception as e:
         st.sidebar.error(f"Preset inválido: {e}")
+
 
 
 
