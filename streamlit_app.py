@@ -759,7 +759,7 @@ AgGrid(
     gridOptions=go,
     theme="balham",                       # tema claro
     # columns_auto_size_mode=ColumnsAutoSizeMode.FIT_CONTENTS,  # opcional
-    height=600,
+    height=700,
     allow_unsafe_jscode=True              # <- NECESSÁRIO quando usas JsCode
 )
 
@@ -800,6 +800,7 @@ if preset_up:
         st.sidebar.success("Preset carregado (aplica manualmente as escolhas na UI).")
     except Exception as e:
         st.sidebar.error(f"Preset inválido: {e}")
+
 
 
 
