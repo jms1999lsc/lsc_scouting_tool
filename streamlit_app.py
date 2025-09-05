@@ -696,8 +696,6 @@ def _style_df(df_):
 
     return sty
 
-    
-st.caption("Score bruto = soma(peso × z‑score). Score (0–100) = percentil do score dentro do conjunto filtrado.")
 
 # ... código acima que prepara o "out" ...
 
@@ -917,6 +915,7 @@ if preset_up:
         st.sidebar.success("Preset carregado (aplica manualmente as escolhas na UI).")
     except Exception as e:
         st.sidebar.error(f"Preset inválido: {e}")
+
 
 
 
