@@ -571,7 +571,7 @@ dfp["_sample_quality"] = dfp.apply(_sample_quality_row, axis=1)
 
 # ----------------------- Output (único, dedup robusto) -----------------------
 # --- KPIs rápidos ---
-k1, k2, k3, k4 = st.columns([1,1,1,1])
+k1, k2, k3 = st.columns([1,1,1])
 # ---- util para obter série de datas de contrato, qualquer que seja o nome da coluna
 def _contract_series(df):
     if "contract_end" in df.columns:
@@ -596,7 +596,6 @@ if "contract_end" in dfp.columns:
     k3.metric("Contrato < 12 meses", _n_expiring)
 else:
     k3.metric("Contrato < 12 meses", 0)
-k4.metric("Perfil", profile)
 st.markdown("<hr>", unsafe_allow_html=True)
 # Ordem base: Nome, Equipa, Posição, Divisão, Idade, Minutos, extras, Scores, Métricas(+pct)
 show_cols = [name_col]
@@ -919,6 +918,7 @@ if preset_up:
         st.sidebar.success("Preset carregado (aplica manualmente as escolhas na UI).")
     except Exception as e:
         st.sidebar.error(f"Preset inválido: {e}")
+
 
 
 
