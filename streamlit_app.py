@@ -793,7 +793,9 @@ function(p){
 
 # 2) GridOptions
 gb = GridOptionsBuilder.from_dataframe(table)
-gb.configure_default_column(filter=True, sortable=True, resizable=True, floatingFilter=True, minWidth=110)
+gb.configure_default_column(
+    filter=True, sortable=True, resizable=True, floatingFilter=True, minWidth=110
+)
 gb.configure_column(str(name_col), minWidth=160)
 if team_col in table.columns: gb.configure_column(team_col, minWidth=140)
 if pos_col  in table.columns: gb.configure_column(pos_col,  minWidth=100)
@@ -850,25 +852,39 @@ go = gb.build()
 # mede colunas fora do viewport
 go["suppressColumnVirtualisation"] = True
 
-# usar a própria função diretamente (sem invocação inline)
 _autoSizeBody = """
 function(p){
   const cols = p.columnApi.getColumns();
   if (!cols) return;
   const ids = [];
   cols.forEach(c => ids.push(c.getColId()));
-  // false => considerar também o cabeçalho
+  // false => considera cabeçalhos também
   p.columnApi.autoSizeColumns(ids, false);
 }
 """
 
+// auto-ajusta apenas no 1.º render (depois respeita o que o utilizador fizer)
 go["onFirstDataRendered"] = JsCode(_autoSizeBody)
-go["onGridSizeChanged"]   = JsCode(_autoSizeBody)
-
+// NÃO ligamos onGridSizeChanged por defeito para não sobrescrever ajustes manuais
 
 # linhas/cabeçalho mais compactos
 go["rowHeight"] = 30             # default ~ 37
 go["headerHeight"] = 34          # default ~ 42
+
+cA, cB = st.columns([1,1])
+re_autosize = cA.button("↔️ Auto-ajustar colunas agora")
+auto_on_resize = cB.checkbox("Auto-ajustar ao redimensionar", value=False)
+
+if auto_on_resize:
+    go["onGridSizeChanged"] = JsCode(_autoSizeBody)
+else:
+    # garante que não está ligado
+    go.pop("onGridSizeChanged", None)
+
+# Truque simples: se clicares no botão, a app reroda e o grid
+# volta a disparar onFirstDataRendered, aplicando o auto-size uma vez.
+if re_autosize:
+    st.experimental_rerun()
 
 # pesquisa global (quick filter) e autofit em render/resize
 q = st.text_input("🔎 Pesquisa global na tabela", "", placeholder="Nome, equipa, liga…")
@@ -935,6 +951,7 @@ if preset_up:
         st.sidebar.success("Preset carregado (aplica manualmente as escolhas na UI).")
     except Exception as e:
         st.sidebar.error(f"Preset inválido: {e}")
+
 
 
 
