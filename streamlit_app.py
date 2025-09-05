@@ -740,6 +740,7 @@ def _style_df(df_):
         sty = sty.apply(warn_contract, subset=["contract_end"])
     return sty
 
+st.caption("Score bruto = soma(peso × z‑score). Score (0–100) = percentil do score dentro do conjunto filtrado.")
 # ================== TABELA (AgGrid) COM FORMATAÇÃO + TABS ==================
 # 1) Preparar cópia para formatação
 table = out.copy()
@@ -918,6 +919,7 @@ if preset_up:
         st.sidebar.success("Preset carregado (aplica manualmente as escolhas na UI).")
     except Exception as e:
         st.sidebar.error(f"Preset inválido: {e}")
+
 
 
 
