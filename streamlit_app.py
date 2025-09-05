@@ -870,20 +870,6 @@ go["onFirstDataRendered"] = JsCode(_autoSizeBody)
 go["rowHeight"] = 30             # default ~ 37
 go["headerHeight"] = 34          # default ~ 42
 
-cA, cB = st.columns([1,1])
-re_autosize = cA.button("↔️ Auto-ajustar colunas agora")
-auto_on_resize = cB.checkbox("Auto-ajustar ao redimensionar", value=False)
-
-if auto_on_resize:
-    go["onGridSizeChanged"] = JsCode(_autoSizeBody)
-else:
-    # garante que não está ligado
-    go.pop("onGridSizeChanged", None)
-
-# Truque simples: se clicares no botão, a app reroda e o grid
-# volta a disparar onFirstDataRendered, aplicando o auto-size uma vez.
-if re_autosize:
-    st.experimental_rerun()
 
 # pesquisa global (quick filter) e autofit em render/resize
 q = st.text_input("🔎 Pesquisa global na tabela", "", placeholder="Nome, equipa, liga…")
@@ -950,6 +936,7 @@ if preset_up:
         st.sidebar.success("Preset carregado (aplica manualmente as escolhas na UI).")
     except Exception as e:
         st.sidebar.error(f"Preset inválido: {e}")
+
 
 
 
