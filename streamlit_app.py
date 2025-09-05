@@ -373,7 +373,7 @@ PROFILES = {
  "Lateral Profundo":            ["crosses_acc","final_third","prog_passes","press_succ","recoveries"],
  "Lateral Associativo":         ["prog_passes","first_phase","key_passes","carries","dribbles"],
  "Defesa Central":              ["clearances","aerial_won","interceptions","tackles_won","blocks"],
- "Defesa Central com Bola":     ["prog_passes","vertical_passes","first_phase","carries","crosses_acc"],
+ "Defesa Central Construtor":     ["prog_passes","vertical_passes","first_phase","carries","crosses_acc"],
  "Médio Defensivo":             ["recoveries","interceptions","press_succ","tackles_won","prog_passes"],
  "Médio Defensivo Construtor":  ["first_phase","prog_passes","vertical_passes","final_third","recoveries"],
  "Médio Centro Progressivo":    ["prog_passes","vertical_passes","carries","key_passes","press_succ"],
@@ -389,7 +389,7 @@ PROFILE_TO_LABELS = {
     "Lateral Profundo":            ["DL", "DML", "DR", "DMR"],
     "Lateral Associativo":         ["DL", "DML", "DR", "DMR"],
     "Defesa Central":              ["DC"],
-    "Defesa Central com Bola":     ["DC"],
+    "Defesa Central Construtor":     ["DC"],
     "Médio Defensivo":             ["DMC", "MC"],
     "Médio Defensivo Construtor":  ["DMC", "MC"],
     "Médio Centro Progressivo":    ["MC", "AMC", "DMC"],
@@ -846,36 +846,34 @@ if "score" in table.columns:
 
 go = gb.build()
 
-# ---- Auto-size real pelo conteúdo ----
-# (1) ajuda a medir colunas fora do viewport
+# ---- Auto-size real pelo conteúdo (sem cortar texto) ----
+# mede colunas fora do viewport
 go["suppressColumnVirtualisation"] = True
 
-# (2) função util para auto-size em todos os campos
-_autoSizeJS = JsCode("""
+# usar a própria função diretamente (sem invocação inline)
+_autoSizeBody = """
 function(p){
-  const all = [];
   const cols = p.columnApi.getColumns();
   if (!cols) return;
-  cols.forEach(c => all.push(c.getColId()));
-  // false => também mede cabeçalho
-  p.columnApi.autoSizeColumns(all, false);
+  const ids = [];
+  cols.forEach(c => ids.push(c.getColId()));
+  // false => considerar também o cabeçalho
+  p.columnApi.autoSizeColumns(ids, false);
 }
-""")
+"""
 
-# (3) chama no render inicial e sempre que o grid muda de tamanho
-go["onFirstDataRendered"] = JsCode("function(p){ setTimeout(function(){(%s)(p);}, 0); }" % _autoSizeJS.js_code)
-go["onGridSizeChanged"]   = _autoSizeJS
+go["onFirstDataRendered"] = JsCode(_autoSizeBody)
+go["onGridSizeChanged"]   = JsCode(_autoSizeBody)
+
 
 # linhas/cabeçalho mais compactos
 go["rowHeight"] = 30             # default ~ 37
 go["headerHeight"] = 34          # default ~ 42
 
-
 # pesquisa global (quick filter) e autofit em render/resize
 q = st.text_input("🔎 Pesquisa global na tabela", "", placeholder="Nome, equipa, liga…")
 if q:
     go["quickFilterText"] = q
-
 
 # 3) Tabs: Ranking / Gráficos rápidos
 tab1, tab2 = st.tabs(["📊 Ranking", "📈 Gráficos rápidos"])
@@ -937,6 +935,7 @@ if preset_up:
         st.sidebar.success("Preset carregado (aplica manualmente as escolhas na UI).")
     except Exception as e:
         st.sidebar.error(f"Preset inválido: {e}")
+
 
 
 
