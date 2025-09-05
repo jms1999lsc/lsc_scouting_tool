@@ -40,6 +40,18 @@ st.set_page_config(
 
 st.markdown("""
 <style>
+/* menos “ar” no topo/baixo da página */
+div.block-container { padding-top: .6rem; padding-bottom: .4rem; }
+/* tabs mais juntinhas */
+.stTabs [role="tablist"] { margin-bottom: .25rem; }
+/* métricas (KPIs) com menos altura */
+.css-1xarl3l, .stMetric { padding: .25rem .5rem; }
+</style>
+""", unsafe_allow_html=True)
+
+
+st.markdown("""
+<style>
 /* Sidebar mais compacta e colada ao topo */
 section[data-testid="stSidebar"] div[data-testid="stSidebarContent"]{
   padding-top: 0px !important;
@@ -835,6 +847,11 @@ if "score" in table.columns:
 
 go = gb.build()
 
+# linhas/cabeçalho mais compactos
+go["rowHeight"] = 30             # default ~ 37
+go["headerHeight"] = 34          # default ~ 42
+
+
 # pesquisa global (quick filter) e autofit em render/resize
 q = st.text_input("🔎 Pesquisa global na tabela", "", placeholder="Nome, equipa, liga…")
 if q:
@@ -849,7 +866,7 @@ with tab1:
         table,
         gridOptions=go,
         theme="balham",
-        height=600,
+        height=780,
         allow_unsafe_jscode=True
     )
 
@@ -902,6 +919,7 @@ if preset_up:
         st.sidebar.success("Preset carregado (aplica manualmente as escolhas na UI).")
     except Exception as e:
         st.sidebar.error(f"Preset inválido: {e}")
+
 
 
 
