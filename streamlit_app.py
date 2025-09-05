@@ -596,10 +596,6 @@ if "contract_end" in dfp.columns:
     k3.metric("Contrato < 12 meses", _n_expiring)
 else:
     k3.metric("Contrato < 12 meses", 0)
-# dentro do bloco dos KPIs, por ex. no k4
-q = k4.text_input("🔎 Pesquisa", "", label_visibility="collapsed", placeholder="Pesquisa global…")
-if q:
-    go["quickFilterText"] = q
 k4.metric("Perfil", profile)
 st.markdown("<hr>", unsafe_allow_html=True)
 # Ordem base: Nome, Equipa, Posição, Divisão, Idade, Minutos, extras, Scores, Métricas(+pct)
@@ -923,6 +919,7 @@ if preset_up:
         st.sidebar.success("Preset carregado (aplica manualmente as escolhas na UI).")
     except Exception as e:
         st.sidebar.error(f"Preset inválido: {e}")
+
 
 
 
