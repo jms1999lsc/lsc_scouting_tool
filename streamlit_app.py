@@ -796,8 +796,8 @@ gb = GridOptionsBuilder.from_dataframe(table)
 gb.configure_default_column(
     filter=True, sortable=True, resizable=True, floatingFilter=True, minWidth=110
 )
-gb.configure_column(str(name_col), minWidth=160)
-if team_col in table.columns: gb.configure_column(team_col, minWidth=140)
+gb.configure_column(str(name_col), minWidth=100)
+if team_col in table.columns: gb.configure_column(team_col, minWidth=100)
 if pos_col  in table.columns: gb.configure_column(pos_col,  minWidth=100)
 
 # tooltips principais
@@ -936,6 +936,7 @@ if preset_up:
         st.sidebar.success("Preset carregado (aplica manualmente as escolhas na UI).")
     except Exception as e:
         st.sidebar.error(f"Preset inválido: {e}")
+
 
 
 
