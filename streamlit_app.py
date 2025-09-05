@@ -865,7 +865,6 @@ function(p){
 
 
 go["onFirstDataRendered"] = JsCode(_autoSizeBody)
-// NÃO ligamos onGridSizeChanged por defeito para não sobrescrever ajustes manuais
 
 # linhas/cabeçalho mais compactos
 go["rowHeight"] = 30             # default ~ 37
@@ -951,6 +950,7 @@ if preset_up:
         st.sidebar.success("Preset carregado (aplica manualmente as escolhas na UI).")
     except Exception as e:
         st.sidebar.error(f"Preset inválido: {e}")
+
 
 
 
