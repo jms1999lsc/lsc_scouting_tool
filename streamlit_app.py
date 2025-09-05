@@ -740,7 +740,6 @@ def _style_df(df_):
         sty = sty.apply(warn_contract, subset=["contract_end"])
     return sty
 
-st.caption("Score bruto = soma(peso × z‑score). Score (0–100) = percentil do score dentro do conjunto filtrado.")
 # ================== TABELA (AgGrid) COM FORMATAÇÃO + TABS ==================
 # 1) Preparar cópia para formatação
 table = out.copy()
@@ -833,7 +832,6 @@ if "contract_end" in table.columns:
     gb.configure_column("contract_end", cellStyle=cell_contract_warn)
 
 # colunas pinadas + sort padrão
-# colunas pinadas + sort padrão
 pin_cols = [str(name_col)]
 if "_sample_quality" in table.columns:
     pin_cols.append("_sample_quality")    # <- pin badge
@@ -884,7 +882,7 @@ with tab2:
     else:
         st.info("Sem colunas numéricas selecionáveis para gráfico.")
 # ================== /TABELA (AgGrid) ==================
-
+st.caption("Score bruto = soma(peso × z‑score). Score (0–100) = percentil do score dentro do conjunto filtrado.")
 # Exportações
 csv_bytes = out.to_csv(index=False).encode("utf-8")
 st.download_button("⬇️ Exportar CSV", data=csv_bytes, file_name=f"ranking_{profile}.csv", mime="text/csv")
