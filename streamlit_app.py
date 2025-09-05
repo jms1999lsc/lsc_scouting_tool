@@ -863,7 +863,7 @@ function(p){
 }
 """
 
-// auto-ajusta apenas no 1.º render (depois respeita o que o utilizador fizer)
+
 go["onFirstDataRendered"] = JsCode(_autoSizeBody)
 // NÃO ligamos onGridSizeChanged por defeito para não sobrescrever ajustes manuais
 
@@ -951,6 +951,7 @@ if preset_up:
         st.sidebar.success("Preset carregado (aplica manualmente as escolhas na UI).")
     except Exception as e:
         st.sidebar.error(f"Preset inválido: {e}")
+
 
 
 
