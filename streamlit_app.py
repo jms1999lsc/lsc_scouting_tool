@@ -793,7 +793,10 @@ function(p){
 
 # 2) GridOptions
 gb = GridOptionsBuilder.from_dataframe(table)
-gb.configure_default_column(filter=True, sortable=True, resizable=True, floatingFilter=True)
+gb.configure_default_column(filter=True, sortable=True, resizable=True, floatingFilter=True, minWidth=110)
+gb.configure_column(str(name_col), minWidth=160)
+if team_col in table.columns: gb.configure_column(team_col, minWidth=140)
+if pos_col  in table.columns: gb.configure_column(pos_col,  minWidth=100)
 
 # tooltips principais
 tooltips = {}
@@ -843,6 +846,26 @@ if "score" in table.columns:
 
 go = gb.build()
 
+# ---- Auto-size real pelo conteúdo ----
+# (1) ajuda a medir colunas fora do viewport
+go["suppressColumnVirtualisation"] = True
+
+# (2) função util para auto-size em todos os campos
+_autoSizeJS = JsCode("""
+function(p){
+  const all = [];
+  const cols = p.columnApi.getColumns();
+  if (!cols) return;
+  cols.forEach(c => all.push(c.getColId()));
+  // false => também mede cabeçalho
+  p.columnApi.autoSizeColumns(all, false);
+}
+""")
+
+# (3) chama no render inicial e sempre que o grid muda de tamanho
+go["onFirstDataRendered"] = JsCode("function(p){ setTimeout(function(){(%s)(p);}, 0); }" % _autoSizeJS.js_code)
+go["onGridSizeChanged"]   = _autoSizeJS
+
 # linhas/cabeçalho mais compactos
 go["rowHeight"] = 30             # default ~ 37
 go["headerHeight"] = 34          # default ~ 42
@@ -852,8 +875,7 @@ go["headerHeight"] = 34          # default ~ 42
 q = st.text_input("🔎 Pesquisa global na tabela", "", placeholder="Nome, equipa, liga…")
 if q:
     go["quickFilterText"] = q
-go["onFirstDataRendered"] = JsCode("function(p){p.api.sizeColumnsToFit();}")
-go["onGridSizeChanged"]   = JsCode("function(p){p.api.sizeColumnsToFit();}")
+
 
 # 3) Tabs: Ranking / Gráficos rápidos
 tab1, tab2 = st.tabs(["📊 Ranking", "📈 Gráficos rápidos"])
@@ -915,6 +937,7 @@ if preset_up:
         st.sidebar.success("Preset carregado (aplica manualmente as escolhas na UI).")
     except Exception as e:
         st.sidebar.error(f"Preset inválido: {e}")
+
 
 
 
