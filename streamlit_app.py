@@ -338,33 +338,117 @@ if age_range and "_age_num" in dfw.columns:
 
 
 # ----------------------- Perfis & defaults -----------------------
-KEYS = {
-    "prog_passes": ["prog pass","progress pass","progressive","passes progressivos","passe progressivo"],
-    "vertical_passes": ["vertical pass","vertical","passe vertical"],
-    "first_phase": ["first phase","build","deep third","saída","constru","build-up","fase inicial"],
-    "key_passes": ["key pass","pass to shot","assist","assistência","passe chave"],
-    "final_third": ["final third","terço final","passe 3º terço","último terço"],
-    "pen_area": ["penalty area","area pass","p/ área","caixa","pen area","área"],
-    "recoveries": ["recovery","recuper","recuperações"],
-    "press_succ": ["press success","successful press","counterpress","gegenpress","pressão","pressão bem-sucedida"],
-    "interceptions": ["intercep","interceptações"],
-    "tackles_won": ["tackle won","desarme","tackles","tackles ganhos"],
-    "aerial_won": ["aerial won","header won","duelo aéreo ganho","cabeceamentos ganhos"],
-    "clearances": ["clearance","alívio","alívios"],
-    "blocks": ["block","bloqueios","remates bloqueados"],
-    "carries": ["carry","progressive run","condução","conduções"],
-    "dribbles": ["dribble","1v1","dribles","dribles bem-sucedidos"],
-    "shots": ["shot","remate","remates"],
-    "xg": ["xg","expected goals","xg total","golos esperados"],
-    "touches_box": ["touches in box","area touches","toques na área"],
-    "crosses_acc": ["cross acc","accurate cross","cruz","cruzamentos certos","cross accuracy"],
-    # --- Guarda-Redes ---
-    "gk_saves": ["save","saves","save %","save pct","% saves","saves in box",
-                 "inside box","shots saved","defesas","paradas"],
-    "gk_claims": ["claim","claims","claim accuracy","high claim","cross stopped",
-                  "crosses stopped","saídas","bolas altas"],
-    "gk_long": ["long pass","goal kick","launch","long distribution",
-                "passes longos","pontapé longo","reposições longas"],
+# =========== Matching robusto de métricas ===========
+import re, unicodedata, difflib
+
+def _norm(s: str) -> str:
+    if s is None: return ""
+    s = unicodedata.normalize("NFKD", str(s)).encode("ascii", "ignore").decode("ascii")
+    s = re.sub(r"[_\-/%]+", " ", s.lower())
+    s = re.sub(r"\s+", " ", s).strip()
+    return s
+
+def _tokens(s: str) -> list[str]:
+    return re.findall(r"[a-z0-9]+", _norm(s))
+
+# regras por conceito: include/exclude/prefer aumentam ou reduzem a pontuação
+METRIC_RULES = {
+    "prog_passes": {
+        "include": ["progressive pass","prog pass","passes progressivos","passe progressivo"],
+        "prefer":  ["per90","p90"],
+        "exclude": ["against","opp","allowed","conced","intercepted"]
+    },
+    "vertical_passes": {
+        "include": ["vertical pass","passe vertical"],
+        "prefer":  ["per90","p90"],
+        "exclude": ["against","opp","allowed"]
+    },
+    "first_phase": {
+        "include": ["first phase","build up","deep third","fase inicial","saida","construcao"],
+        "prefer":  ["per90","p90"],
+        "exclude": ["against","opp","allowed"]
+    },
+    "key_passes": {
+        "include": ["key pass","pass to shot","passe chave","assist"],
+        "prefer":  ["per90","p90"],
+        "exclude": ["assistente","coach","against","opp","allowed"]
+    },
+    "final_third": {
+        "include": ["final third","terco final","ultimo terco","passe 3 terco"],
+        "prefer":  ["per90","p90"],
+        "exclude": ["against","opp","allowed"]
+    },
+    "pen_area": {
+        "include": ["penalty area","area pass","toques na area","pen area","caixa"],
+        "prefer":  ["per90","p90"],
+        "exclude": ["against","opp","allowed"]
+    },
+    "recoveries": {
+        "include": ["recovery","recuperacao","recuperacoes"],
+        "prefer":  ["per90","p90"], "exclude": []
+    },
+    "press_succ": {
+        "include": ["press success","successful press","counterpress","gegenpress","pressao"],
+        "prefer":  ["per90","p90","%","pct"], "exclude": ["against","opp","allowed"]
+    },
+    "interceptions": {
+        "include": ["interception","intercep","interceptacoes"],
+        "prefer":  ["per90","p90"], "exclude": []
+    },
+    "tackles_won": {
+        "include": ["tackles won","tackle won","desarme","tackles ganhos"],
+        "prefer":  ["per90","p90"], "exclude": []
+    },
+    "aerial_won": {
+        "include": ["aerial duels won","aerial won","header won","duelo aereo ganho","cabecamentos ganhos"],
+        "prefer":  ["per90","p90"], "exclude": []
+    },
+    "clearances": {
+        "include": ["clearance","alivio","alivios"],
+        "prefer":  ["per90","p90"], "exclude": []
+    },
+    "blocks": {
+        "include": ["block","bloqueios","remates bloqueados"],
+        "prefer":  ["per90","p90"], "exclude": []
+    },
+    "carries": {
+        "include": ["carry","progressive run","conducao","conducoes"],
+        "prefer":  ["per90","p90"], "exclude": []
+    },
+    "dribbles": {
+        "include": ["dribble","1v1","dribles"],
+        "prefer":  ["per90","p90","%","pct"], "exclude": []
+    },
+    "shots": {
+        "include": ["shot","remate","shots total","remates"],
+        "prefer":  ["per90","p90"], "exclude": ["against","opp","allowed"]
+    },
+    "xg": {
+        "include": ["xg","expected goals","golos esperados"],
+        "prefer":  ["per90","p90"], "exclude": ["against","opp","allowed"]
+    },
+    "touches_box": {
+        "include": ["touches in box","area touches","toques na area"],
+        "prefer":  ["per90","p90"], "exclude": []
+    },
+    "crosses_acc": {
+        "include": ["cross accuracy","accurate crosses","cruzamentos certos","cross acc"],
+        "prefer":  ["%","pct"], "exclude": ["against","opp","allowed"]
+    },
+    # ---- Guarda-Redes ----
+    "gk_saves": {
+        "include": ["saves","save pct","% saves","shots saved","saves in box","defesas","paradas"],
+        "prefer":  ["%","pct","per90","p90"],
+        "exclude": ["saves faced","shots on target against","against","conceded","opp"]
+    },
+    "gk_claims": {
+        "include": ["claims","claim accuracy","high claims","cross(es) stopped","saidas","bolas altas"],
+        "prefer":  ["%","pct"], "exclude": ["against","opp","allowed"]
+    },
+    "gk_long": {
+        "include": ["long pass","goal kick","long distribution","passes longos","pontape longo","reposicoes longas"],
+        "prefer":  ["per90","p90"], "exclude": []
+    },
 }
 
 PROFILES = {
@@ -406,21 +490,98 @@ except ValueError:
     idx_minutes = -1
 metric_candidates = cols_order[idx_minutes + 1:]
 
-def suggest_defaults(profile_key_list, candidates):
-    chosen = []
-    clower = {c: c.lower() for c in candidates}
-    for key in profile_key_list:
-        kws = KEYS.get(key, [])
-        pick = None
-        for c in candidates:
-            if any(k in clower[c] for k in kws):
-                pick = c
-                break
-        if pick and pick not in chosen:
-            chosen.append(pick)
+def _is_per90_name(name: str) -> bool:
+    return bool(re.search(r"\b(p90|per90|per 90)\b", _norm(name)))
 
-    # >>> NÃO completar com qualquer métrica — só devolve os matches encontrados
-    return chosen
+def _score_column_for_rule(col: str, rule_key: str) -> float:
+    """Pontua um nome de coluna para um conceito."""
+    coln = _norm(col)
+    inc  = METRIC_RULES[rule_key].get("include", [])
+    pref = METRIC_RULES[rule_key].get("prefer", [])
+    exc  = METRIC_RULES[rule_key].get("exclude", [])
+
+    score = 0.0
+
+    # penalizações fortes para termos proibidos
+    for e in exc:
+        if re.search(rf"\b{re.escape(_norm(e))}\b", coln):
+            score -= 3.0
+
+    # matches de inclusão com fronteira de palavra
+    for i in inc:
+        pat = rf"\b{re.escape(_norm(i))}\b"
+        if re.search(pat, coln):
+            score += 2.0
+
+    # preferências (per90, %, etc)
+    for p in pref:
+        if re.search(rf"\b{re.escape(_norm(p))}\b", coln):
+            score += 0.8
+
+    # boost adicional se o nome sugere per90
+    if _is_per90_name(coln):
+        score += 0.6
+
+    # similaridade aproximada (difflib) com as frases "include"
+    if inc:
+        best = max(difflib.SequenceMatcher(None, coln, _norm(i)).ratio() for i in inc)
+        score += 1.2 * best  # 0..1.2
+
+    return score
+
+def suggest_defaults(profile_key_list, candidates):
+    """
+    Devolve até 5 colunas sugeridas para o perfil, pontuando cada coluna
+    contra as regras de cada conceito do perfil.
+    - apenas colunas numéricas entram
+    - evita duplicados
+    """
+    # filtrar candidatos para colunas numéricas e remover identificadores
+    id_like = {_norm(x) for x in [
+        "name","player","team","equipa","club","clube","position","posicao","role",
+        "season","league","division","age","idade", "minutes","mins","minutos",
+        "_market_value","market_value","_contract_end","contract_end"
+    ]}
+    usable = []
+    for c in candidates:
+        if c not in dfw.columns: 
+            continue
+        if not pd.api.types.is_numeric_dtype(dfw[c]): 
+            continue
+        if _norm(c) in id_like: 
+            continue
+        usable.append(c)
+
+    chosen = []
+    used    = set()
+
+    # 1) para cada conceito do perfil, escolher o melhor candidato acima de um threshold
+    for key in profile_key_list:
+        if key not in METRIC_RULES:
+            continue
+        scored = [(c, _score_column_for_rule(c, key)) for c in usable if c not in used]
+        if not scored:
+            continue
+        scored.sort(key=lambda x: x[1], reverse=True)
+        best_col, best_score = scored[0]
+        # threshold conservador para evitar "chutes"
+        if best_score >= 2.2 and best_col not in used:
+            chosen.append(best_col)
+            used.add(best_col)
+
+    # 2) completar até 5 com as numéricas mais "informativas" (variância alta)
+    if len(chosen) < 5:
+        rest = [c for c in usable if c not in used]
+        if rest:
+            vari = [(c, pd.to_numeric(dfw[c], errors="coerce").var(ddof=0)) for c in rest]
+            vari = [x for x in vari if pd.notna(x[1])]
+            vari.sort(key=lambda x: (x[1] if pd.notna(x[1]) else -1), reverse=True)
+            for c, _ in vari:
+                chosen.append(c)
+                if len(chosen) >= 5:
+                    break
+
+    return chosen[:5]
 
 # ----------------------- Sidebar: Perfil / Etiquetas / Métricas / Pesos -----------------------
 st.sidebar.markdown("---")
@@ -935,6 +1096,7 @@ if preset_up:
         st.sidebar.success("Preset carregado (aplica manualmente as escolhas na UI).")
     except Exception as e:
         st.sidebar.error(f"Preset inválido: {e}")
+
 
 
 
