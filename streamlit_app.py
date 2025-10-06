@@ -257,11 +257,11 @@ with st.sidebar.expander("⚙️ Mapeamento", expanded=True):
                            index=(0 if age_col_g is None else list(df.columns).index(age_col_g)+1))
     pos_col     = st.selectbox("Posição (texto)", options=df.columns, index=list(df.columns).index(pos_col))
     # +++ NOVO +++
-    height_col = st.sidebar.selectbox(
+    height_col = st.selectbox(
     "Altura (opcional)", options=["(não usar)"] + list(df.columns),
     index=(0 if height_col_g is None else list(df.columns).index(height_col_g)+1)
     )
-    foot_col = st.sidebar.selectbox(
+    foot_col = st.selectbox(
         "Pé preferido (opcional)", options=["(não usar)"] + list(df.columns),
         index=(0 if foot_col_g is None else list(df.columns).index(foot_col_g)+1)
     )
