@@ -359,6 +359,22 @@ else:
 if age_range and "_age_num" in dfw.columns:
     dfw = dfw[dfw["_age_num"].between(age_range[0], age_range[1])].copy()
 
+# +++ NOVO: slider de Altura (cm)
+height_range = None
+if "_height_cm" in dfw.columns and dfw["_height_cm"].notna().any():
+    # limites seguros (ignora NaN e inf)
+    hvals = pd.to_numeric(dfw["_height_cm"], errors="coerce")
+    hvals = hvals[np.isfinite(hvals)]
+    if len(hvals):
+        hmin, hmax = int(np.floor(hvals.min())), int(np.ceil(hvals.max()))
+        # evita min==max
+        if hmin == hmax:
+            hmin = max(0, hmin - 1); hmax += 1
+        height_range = st.sidebar.slider("Altura (cm)", min_value=hmin, max_value=hmax, value=(hmin, hmax))
+else:
+    height_range = None
+
+
 
 # ----------------------- Perfis & defaults -----------------------
 # =========== Matching robusto de métricas ===========
@@ -728,6 +744,10 @@ if val_range and "_market_value" in dfp.columns:
     dfp = dfp[dfp["_market_value"].between(val_range[0], val_range[1])]
 if (d_from and d_to) and "_contract_end" in dfp.columns:
     dfp = dfp[dfp["_contract_end"].apply(lambda x: x is not None and d_from <= x <= d_to)]
+# +++ NOVO: aplicar filtro de Altura
+if height_range and "_height_cm" in dfp.columns:
+    dfp = dfp[dfp["_height_cm"].between(height_range[0], height_range[1])]
+
 
 if not len(dfp):
     st.warning("Nenhum jogador cumpre os filtros/etiquetas selecionados.")
@@ -1126,91 +1146,6 @@ if preset_up:
         st.sidebar.success("Preset carregado (aplica manualmente as escolhas na UI).")
     except Exception as e:
         st.sidebar.error(f"Preset inválido: {e}")
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 
