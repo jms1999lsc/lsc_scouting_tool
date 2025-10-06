@@ -359,21 +359,24 @@ else:
 if age_range and "_age_num" in dfw.columns:
     dfw = dfw[dfw["_age_num"].between(age_range[0], age_range[1])].copy()
 
-# +++ NOVO: slider de Altura (cm)
+# +++ NOVO: slider de Altura (cm) — mínimo fixo de 140
 height_range = None
 if "_height_cm" in dfw.columns and dfw["_height_cm"].notna().any():
-    # limites seguros (ignora NaN e inf)
     hvals = pd.to_numeric(dfw["_height_cm"], errors="coerce")
     hvals = hvals[np.isfinite(hvals)]
     if len(hvals):
-        hmin, hmax = int(np.floor(hvals.min())), int(np.ceil(hvals.max()))
-        # evita min==max
-        if hmin == hmax:
-            hmin = max(0, hmin - 1); hmax += 1
-        height_range = st.sidebar.slider("Altura (cm)", min_value=hmin, max_value=hmax, value=(hmin, hmax))
+        hmin = 140  # mínimo fixo
+        hmax = int(np.ceil(hvals.max()))
+        if hmax < hmin:
+            hmax = hmin + 1
+        height_range = st.sidebar.slider(
+            "Altura (cm)",
+            min_value=hmin,
+            max_value=hmax,
+            value=(hmin, hmax)
+        )
 else:
     height_range = None
-
 
 
 # ----------------------- Perfis & defaults -----------------------
@@ -1146,6 +1149,7 @@ if preset_up:
         st.sidebar.success("Preset carregado (aplica manualmente as escolhas na UI).")
     except Exception as e:
         st.sidebar.error(f"Preset inválido: {e}")
+
 
 
 
