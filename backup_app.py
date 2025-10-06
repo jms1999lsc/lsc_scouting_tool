@@ -5,6 +5,7 @@ import numpy as np
 import pandas as pd
 import streamlit as st
 from st_aggrid import AgGrid, GridOptionsBuilder, ColumnsAutoSizeMode, JsCode
+import altair as alt
 
 
 # ---- PASSWORD LOGIN ----
@@ -36,6 +37,18 @@ st.set_page_config(
     layout="wide",
     initial_sidebar_state="expanded",
 )
+
+st.markdown("""
+<style>
+/* menos “ar” no topo/baixo da página */
+div.block-container { padding-top: .6rem; padding-bottom: .4rem; }
+/* tabs mais juntinhas */
+.stTabs [role="tablist"] { margin-bottom: .25rem; }
+/* métricas (KPIs) com menos altura */
+.css-1xarl3l, .stMetric { padding: .25rem .5rem; }
+</style>
+""", unsafe_allow_html=True)
+
 
 st.markdown("""
 <style>
@@ -72,7 +85,6 @@ section[data-testid="stSidebar"] hr{
 }
 </style>
 """, unsafe_allow_html=True)
-
 
 # CSS leve: esconde menu/rodapé e ajusta paddings
 st.markdown("""
@@ -326,33 +338,117 @@ if age_range and "_age_num" in dfw.columns:
 
 
 # ----------------------- Perfis & defaults -----------------------
-KEYS = {
-    "prog_passes": ["prog pass","progress pass","progressive","passes progressivos","passe progressivo"],
-    "vertical_passes": ["vertical pass","vertical","passe vertical"],
-    "first_phase": ["first phase","build","deep third","saída","constru","build-up","fase inicial"],
-    "key_passes": ["key pass","pass to shot","assist","assistência","passe chave"],
-    "final_third": ["final third","terço final","passe 3º terço","último terço"],
-    "pen_area": ["penalty area","area pass","p/ área","caixa","pen area","área"],
-    "recoveries": ["recovery","recuper","recuperações"],
-    "press_succ": ["press success","successful press","counterpress","gegenpress","pressão","pressão bem-sucedida"],
-    "interceptions": ["intercep","interceptações"],
-    "tackles_won": ["tackle won","desarme","tackles","tackles ganhos"],
-    "aerial_won": ["aerial won","header won","duelo aéreo ganho","cabeceamentos ganhos"],
-    "clearances": ["clearance","alívio","alívios"],
-    "blocks": ["block","bloqueios","remates bloqueados"],
-    "carries": ["carry","progressive run","condução","conduções"],
-    "dribbles": ["dribble","1v1","dribles","dribles bem-sucedidos"],
-    "shots": ["shot","remate","remates"],
-    "xg": ["xg","expected goals","xg total","golos esperados"],
-    "touches_box": ["touches in box","area touches","toques na área"],
-    "crosses_acc": ["cross acc","accurate cross","cruz","cruzamentos certos","cross accuracy"],
-    # --- Guarda-Redes ---
-    "gk_saves": ["save","saves","save %","save pct","% saves","saves in box",
-                 "inside box","shots saved","defesas","paradas"],
-    "gk_claims": ["claim","claims","claim accuracy","high claim","cross stopped",
-                  "crosses stopped","saídas","bolas altas"],
-    "gk_long": ["long pass","goal kick","launch","long distribution",
-                "passes longos","pontapé longo","reposições longas"],
+# =========== Matching robusto de métricas ===========
+import re, unicodedata, difflib
+
+def _norm(s: str) -> str:
+    if s is None: return ""
+    s = unicodedata.normalize("NFKD", str(s)).encode("ascii", "ignore").decode("ascii")
+    s = re.sub(r"[_\-/%]+", " ", s.lower())
+    s = re.sub(r"\s+", " ", s).strip()
+    return s
+
+def _tokens(s: str) -> list[str]:
+    return re.findall(r"[a-z0-9]+", _norm(s))
+
+# regras por conceito: include/exclude/prefer aumentam ou reduzem a pontuação
+METRIC_RULES = {
+    "prog_passes": {
+        "include": ["progressive pass","prog pass","passes progressivos","passe progressivo"],
+        "prefer":  ["per90","p90"],
+        "exclude": ["against","opp","allowed","conced","intercepted"]
+    },
+    "vertical_passes": {
+        "include": ["vertical pass","passe vertical"],
+        "prefer":  ["per90","p90"],
+        "exclude": ["against","opp","allowed"]
+    },
+    "first_phase": {
+        "include": ["first phase","build up","deep third","fase inicial","saida","construcao"],
+        "prefer":  ["per90","p90"],
+        "exclude": ["against","opp","allowed"]
+    },
+    "key_passes": {
+        "include": ["key pass","pass to shot","passe chave","assist"],
+        "prefer":  ["per90","p90"],
+        "exclude": ["assistente","coach","against","opp","allowed"]
+    },
+    "final_third": {
+        "include": ["final third","terco final","ultimo terco","passe 3 terco"],
+        "prefer":  ["per90","p90"],
+        "exclude": ["against","opp","allowed"]
+    },
+    "pen_area": {
+        "include": ["penalty area","area pass","toques na area","pen area","caixa"],
+        "prefer":  ["per90","p90"],
+        "exclude": ["against","opp","allowed"]
+    },
+    "recoveries": {
+        "include": ["recovery","recuperacao","recuperacoes"],
+        "prefer":  ["per90","p90"], "exclude": []
+    },
+    "press_succ": {
+        "include": ["press success","successful press","counterpress","gegenpress","pressao"],
+        "prefer":  ["per90","p90","%","pct"], "exclude": ["against","opp","allowed"]
+    },
+    "interceptions": {
+        "include": ["interception","intercep","interceptacoes"],
+        "prefer":  ["per90","p90"], "exclude": []
+    },
+    "tackles_won": {
+        "include": ["tackles won","tackle won","desarme","tackles ganhos"],
+        "prefer":  ["per90","p90"], "exclude": []
+    },
+    "aerial_won": {
+        "include": ["aerial duels won","aerial won","header won","duelo aereo ganho","cabecamentos ganhos"],
+        "prefer":  ["per90","p90"], "exclude": []
+    },
+    "clearances": {
+        "include": ["clearance","alivio","alivios"],
+        "prefer":  ["per90","p90"], "exclude": []
+    },
+    "blocks": {
+        "include": ["block","bloqueios","remates bloqueados"],
+        "prefer":  ["per90","p90"], "exclude": []
+    },
+    "carries": {
+        "include": ["carry","progressive run","conducao","conducoes"],
+        "prefer":  ["per90","p90"], "exclude": []
+    },
+    "dribbles": {
+        "include": ["dribble","1v1","dribles"],
+        "prefer":  ["per90","p90","%","pct"], "exclude": []
+    },
+    "shots": {
+        "include": ["shot","remate","shots total","remates"],
+        "prefer":  ["per90","p90"], "exclude": ["against","opp","allowed"]
+    },
+    "xg": {
+        "include": ["xg","expected goals","golos esperados"],
+        "prefer":  ["per90","p90"], "exclude": ["against","opp","allowed"]
+    },
+    "touches_box": {
+        "include": ["touches in box","area touches","toques na area"],
+        "prefer":  ["per90","p90"], "exclude": []
+    },
+    "crosses_acc": {
+        "include": ["cross accuracy","accurate crosses","cruzamentos certos","cross acc"],
+        "prefer":  ["%","pct"], "exclude": ["against","opp","allowed"]
+    },
+    # ---- Guarda-Redes ----
+    "gk_saves": {
+        "include": ["saves","save pct","% saves","shots saved","saves in box","defesas","paradas"],
+        "prefer":  ["%","pct","per90","p90"],
+        "exclude": ["saves faced","shots on target against","against","conceded","opp"]
+    },
+    "gk_claims": {
+        "include": ["claims","claim accuracy","high claims","cross(es) stopped","saidas","bolas altas"],
+        "prefer":  ["%","pct"], "exclude": ["against","opp","allowed"]
+    },
+    "gk_long": {
+        "include": ["long pass","goal kick","long distribution","passes longos","pontape longo","reposicoes longas"],
+        "prefer":  ["per90","p90"], "exclude": []
+    },
 }
 
 PROFILES = {
@@ -361,7 +457,7 @@ PROFILES = {
  "Lateral Profundo":            ["crosses_acc","final_third","prog_passes","press_succ","recoveries"],
  "Lateral Associativo":         ["prog_passes","first_phase","key_passes","carries","dribbles"],
  "Defesa Central":              ["clearances","aerial_won","interceptions","tackles_won","blocks"],
- "Defesa Central com Bola":     ["prog_passes","vertical_passes","first_phase","carries","crosses_acc"],
+ "Defesa Central Construtor":     ["prog_passes","vertical_passes","first_phase","carries","crosses_acc"],
  "Médio Defensivo":             ["recoveries","interceptions","press_succ","tackles_won","prog_passes"],
  "Médio Defensivo Construtor":  ["first_phase","prog_passes","vertical_passes","final_third","recoveries"],
  "Médio Centro Progressivo":    ["prog_passes","vertical_passes","carries","key_passes","press_succ"],
@@ -377,7 +473,7 @@ PROFILE_TO_LABELS = {
     "Lateral Profundo":            ["DL", "DML", "DR", "DMR"],
     "Lateral Associativo":         ["DL", "DML", "DR", "DMR"],
     "Defesa Central":              ["DC"],
-    "Defesa Central com Bola":     ["DC"],
+    "Defesa Central Construtor":     ["DC"],
     "Médio Defensivo":             ["DMC", "MC"],
     "Médio Defensivo Construtor":  ["DMC", "MC"],
     "Médio Centro Progressivo":    ["MC", "AMC", "DMC"],
@@ -394,21 +490,98 @@ except ValueError:
     idx_minutes = -1
 metric_candidates = cols_order[idx_minutes + 1:]
 
-def suggest_defaults(profile_key_list, candidates):
-    chosen = []
-    clower = {c: c.lower() for c in candidates}
-    for key in profile_key_list:
-        kws = KEYS.get(key, [])
-        pick = None
-        for c in candidates:
-            if any(k in clower[c] for k in kws):
-                pick = c
-                break
-        if pick and pick not in chosen:
-            chosen.append(pick)
+def _is_per90_name(name: str) -> bool:
+    return bool(re.search(r"\b(p90|per90|per 90)\b", _norm(name)))
 
-    # >>> NÃO completar com qualquer métrica — só devolve os matches encontrados
-    return chosen
+def _score_column_for_rule(col: str, rule_key: str) -> float:
+    """Pontua um nome de coluna para um conceito."""
+    coln = _norm(col)
+    inc  = METRIC_RULES[rule_key].get("include", [])
+    pref = METRIC_RULES[rule_key].get("prefer", [])
+    exc  = METRIC_RULES[rule_key].get("exclude", [])
+
+    score = 0.0
+
+    # penalizações fortes para termos proibidos
+    for e in exc:
+        if re.search(rf"\b{re.escape(_norm(e))}\b", coln):
+            score -= 3.0
+
+    # matches de inclusão com fronteira de palavra
+    for i in inc:
+        pat = rf"\b{re.escape(_norm(i))}\b"
+        if re.search(pat, coln):
+            score += 2.0
+
+    # preferências (per90, %, etc)
+    for p in pref:
+        if re.search(rf"\b{re.escape(_norm(p))}\b", coln):
+            score += 0.8
+
+    # boost adicional se o nome sugere per90
+    if _is_per90_name(coln):
+        score += 0.6
+
+    # similaridade aproximada (difflib) com as frases "include"
+    if inc:
+        best = max(difflib.SequenceMatcher(None, coln, _norm(i)).ratio() for i in inc)
+        score += 1.2 * best  # 0..1.2
+
+    return score
+
+def suggest_defaults(profile_key_list, candidates):
+    """
+    Devolve até 5 colunas sugeridas para o perfil, pontuando cada coluna
+    contra as regras de cada conceito do perfil.
+    - apenas colunas numéricas entram
+    - evita duplicados
+    """
+    # filtrar candidatos para colunas numéricas e remover identificadores
+    id_like = {_norm(x) for x in [
+        "name","player","team","equipa","club","clube","position","posicao","role",
+        "season","league","division","age","idade", "minutes","mins","minutos",
+        "_market_value","market_value","_contract_end","contract_end"
+    ]}
+    usable = []
+    for c in candidates:
+        if c not in dfw.columns: 
+            continue
+        if not pd.api.types.is_numeric_dtype(dfw[c]): 
+            continue
+        if _norm(c) in id_like: 
+            continue
+        usable.append(c)
+
+    chosen = []
+    used    = set()
+
+    # 1) para cada conceito do perfil, escolher o melhor candidato acima de um threshold
+    for key in profile_key_list:
+        if key not in METRIC_RULES:
+            continue
+        scored = [(c, _score_column_for_rule(c, key)) for c in usable if c not in used]
+        if not scored:
+            continue
+        scored.sort(key=lambda x: x[1], reverse=True)
+        best_col, best_score = scored[0]
+        # threshold conservador para evitar "chutes"
+        if best_score >= 2.2 and best_col not in used:
+            chosen.append(best_col)
+            used.add(best_col)
+
+    # 2) completar até 5 com as numéricas mais "informativas" (variância alta)
+    if len(chosen) < 5:
+        rest = [c for c in usable if c not in used]
+        if rest:
+            vari = [(c, pd.to_numeric(dfw[c], errors="coerce").var(ddof=0)) for c in rest]
+            vari = [x for x in vari if pd.notna(x[1])]
+            vari.sort(key=lambda x: (x[1] if pd.notna(x[1]) else -1), reverse=True)
+            for c, _ in vari:
+                chosen.append(c)
+                if len(chosen) >= 5:
+                    break
+
+    return chosen[:5]
 
 # ----------------------- Sidebar: Perfil / Etiquetas / Métricas / Pesos -----------------------
 st.sidebar.markdown("---")
@@ -544,9 +717,52 @@ dfp["score"] = sum(
 )
 dfp["score_0_100"] = (dfp["score"].rank(pct=True) * 100).round(1)
 
+# --- Badge simples de qualidade de amostra (🟩/🟨/🟥) ---
+def _sample_quality_row(row):
+    mins_ok = pd.to_numeric(row[minutes_col], errors="coerce") >= 900
+    # heurística leve: se existir pelo menos 1 coluna *_pct, damos mais 1 ponto
+    pct_cols = [c for c in dfp.columns if str(c).endswith("_pct")]
+    pct_ok = len(pct_cols) > 0
+    score = int(mins_ok) + int(pct_ok)  # 0..2
+    if score >= 2: return "🟩"
+    if score == 1: return "🟨"
+    return "🟥"
+
+dfp["_sample_quality"] = dfp.apply(_sample_quality_row, axis=1)
+
 # ----------------------- Output (único, dedup robusto) -----------------------
+# --- KPIs rápidos ---
+k1, k2, k3 = st.columns([1,1,1])
+# ---- util para obter série de datas de contrato, qualquer que seja o nome da coluna
+def _contract_series(df):
+    if "contract_end" in df.columns:
+        return pd.to_datetime(df["contract_end"], errors="coerce")
+    if "_contract_end" in df.columns:
+        return pd.to_datetime(df["_contract_end"], errors="coerce")
+    return None
+
+_s_contract = _contract_series(dfp)
+if _s_contract is not None:
+    _days = (_s_contract - pd.Timestamp.today().normalize()).dt.days
+    _n_expiring = int((_days <= 365).sum())
+else:
+    _n_expiring = 0
+k1.metric("Jogadores", f"{len(dfp):,}".replace(",","."))
+if age_col != "(não usar)" and age_col in dfp.columns:
+    k2.metric("Idade média", f"{pd.to_numeric(dfp[age_col], errors='coerce').mean():.1f}")
+else:
+    k2.metric("Idade média", "—")
+if "contract_end" in dfp.columns:
+    _days = (pd.to_datetime(dfp["contract_end"], errors="coerce") - pd.Timestamp.today()).dt.days
+    k3.metric("Contrato < 12 meses", _n_expiring)
+else:
+    k3.metric("Contrato < 12 meses", 0)
+st.markdown("<hr>", unsafe_allow_html=True)
 # Ordem base: Nome, Equipa, Posição, Divisão, Idade, Minutos, extras, Scores, Métricas(+pct)
 show_cols = [name_col]
+# inserir a badge de qualidade logo a seguir ao nome
+if "_sample_quality" in dfp.columns and "_sample_quality" not in show_cols:
+    show_cols.insert(1, "_sample_quality")
 if team_col != "(não usar)":
     show_cols.append(team_col)
 show_cols.append(pos_col)
@@ -641,9 +857,6 @@ def _style_df(df_):
 
     return sty
 
-    
-st.caption("Score bruto = soma(peso × z‑score). Score (0–100) = percentil do score dentro do conjunto filtrado.")
-# ... código acima que prepara o "out" ...
 
 # ... código acima que prepara o "out" ...
 
@@ -686,24 +899,23 @@ def _style_df(df_):
         sty = sty.apply(warn_contract, subset=["contract_end"])
     return sty
 
-# ================== TABELA (AgGrid) COM FORMATAÇÃO ==================
-# 1) Preparar uma cópia para formatar colunas “de exibição”
+# ================== TABELA (AgGrid) COM FORMATAÇÃO + TABS ==================
+# 1) Preparar cópia para formatação
 table = out.copy()
 
-# Datas limpas (YYYY-MM-DD)
+# Datas human-readable
 if "contract_end" in table.columns:
     table["contract_end"] = pd.to_datetime(table["contract_end"], errors="coerce").dt.strftime("%Y-%m-%d")
 
-# 2) Formatters JS (AgGrid)
+# Formatters / cell styles
 fmt_3dec = JsCode("function(p){ if(p.value==null) return ''; return Number(p.value).toFixed(3); }")
 fmt_1dec = JsCode("function(p){ if(p.value==null) return ''; return Number(p.value).toFixed(1); }")
 
-# Divergente para 'score' (azul = positivo, vermelho = negativo)
 cell_divergent = JsCode("""
 function(p){
   if (p.value == null) return {};
   const v = Number(p.value);
-  const clip = Math.max(-3, Math.min(3, v));     // limita a [-3, 3]
+  const clip = Math.max(-3, Math.min(3, v));
   const hue  = (clip >= 0) ? 210 : 0;            // 210=azul, 0=vermelho
   const light = 100 - (Math.abs(clip)/3)*60;     // 100→40
   const color = `hsl(${hue}, 82%, ${light}%)`;
@@ -712,7 +924,6 @@ function(p){
 }
 """)
 
-# Gradiente para percentis/score_0_100 (azul mais forte = maior)
 cell_blue_grad = JsCode("""
 function(p){
   if (p.value == null) return {};
@@ -724,88 +935,133 @@ function(p){
 }
 """)
 
-# Vermelho suave se expira ≤ 365 dias; mais forte se já expirou
 cell_contract_warn = JsCode("""
 function(p){
   if (!p.value) return {};
-  // p.value vem em "YYYY-MM-DD" (ou ISO). O Date lê ISO direto.
   var d = new Date(p.value);
   if (isNaN(d)) return {};
   var today = new Date();
-  // diferença em dias
   var diffDays = (d - today) / (1000*60*60*24);
-
-  // expirado
   if (diffDays < 0) {
-    return {'backgroundColor':'#ffd6d6', 'color':'#7a0000'}; // vermelho + forte
+    return {'backgroundColor':'#ffd6d6', 'color':'#7a0000'};   // expirado
   }
-  // expira dentro de 12 meses
   if (diffDays <= 365) {
-    return {'backgroundColor':'#ffecec', 'color':'#7a0000'}; // vermelho suave
+    return {'backgroundColor':'#ffecec', 'color':'#7a0000'};   // < 12m
   }
   return {};
 }
 """)
 
-# 3) GridOptions
+# 2) GridOptions
 gb = GridOptionsBuilder.from_dataframe(table)
-gb.configure_default_column(filter=True, sortable=True, resizable=True, floatingFilter=True)
+gb.configure_default_column(
+    filter=True, sortable=True, resizable=True, floatingFilter=True)
+gb.configure_column(str(name_col), minWidth=100)
+if team_col in table.columns: gb.configure_column(team_col, minWidth=100)
+if pos_col  in table.columns: gb.configure_column(pos_col,  minWidth=100)
 
-# Garantir filtro de texto em Name
-gb.configure_column(str(name_col), filter="agTextColumnFilter")
-
-# Alinhar números à direita
-for c in table.columns:
-    if pd.api.types.is_numeric_dtype(table[c]):
-        gb.configure_column(c, type=["rightAligned"])
-
-# Formatação e estilos nas colunas-chave
-if "score" in table.columns:
-    gb.configure_column("score", valueFormatter=fmt_3dec, cellStyle=cell_divergent)
-
-if "score_0_100" in table.columns:
-    gb.configure_column("score_0_100", valueFormatter=fmt_1dec, cellStyle=cell_blue_grad)
-
-# Qualquer coluna *percentil* (_pct) recebe 1 decimal + gradiente azul
-for c in table.columns:
-    if str(c).endswith("_pct"):
-        gb.configure_column(c, valueFormatter=fmt_1dec, cellStyle=cell_blue_grad)
-
-if "contract_end" in table.columns:
-    gb.configure_column("contract_end", cellStyle=cell_contract_warn)
-
+# tooltips principais
 tooltips = {}
 tooltips[str(name_col)] = "Nome do jogador"
-if team_col!="(não usar)": tooltips[team_col] = "Equipa / Clube"
-tooltips["score"] = "Soma ponderada de z-scores (negativo/positivo)"
-tooltips["score_0_100"] = "Percentil do score dentro do conjunto filtrado"
-tooltips["contract_end"] = "Data do fim de contrato (vermelho = < 12 meses ou expirado)"
-
+if team_col != "(não usar)" and team_col in table.columns:
+    tooltips[team_col] = "Equipa / Clube"
+if "score" in table.columns:
+    tooltips["score"] = "Soma ponderada de z-scores (negativo/positivo)"
+if "score_0_100" in table.columns:
+    tooltips["score_0_100"] = "Percentil do score dentro do conjunto filtrado"
+if "contract_end" in table.columns:
+    tooltips["contract_end"] = "Fim de contrato (vermelho = < 12 meses ou expirado)"
 for col, tip in tooltips.items():
     if col in table.columns:
         gb.configure_column(col, headerTooltip=tip, tooltipField=col)
 
+# filtro de texto explícito em Name
+gb.configure_column(str(name_col), filter="agTextColumnFilter")
+
+# alinhamento numérico à direita
+for c in table.columns:
+    if pd.api.types.is_numeric_dtype(table[c]):
+        gb.configure_column(c, type=["rightAligned"])
+
+# formatação e cores
+if "score" in table.columns:
+    gb.configure_column("score", valueFormatter=fmt_3dec, cellStyle=cell_divergent)
+if "score_0_100" in table.columns:
+    gb.configure_column("score_0_100", valueFormatter=fmt_1dec, cellStyle=cell_blue_grad)
+for c in table.columns:
+    if str(c).endswith("_pct"):
+        gb.configure_column(c, valueFormatter=fmt_1dec, cellStyle=cell_blue_grad)
+if "contract_end" in table.columns:
+    gb.configure_column("contract_end", cellStyle=cell_contract_warn)
+
+# colunas pinadas + sort padrão
+pin_cols = [str(name_col)]
+if "_sample_quality" in table.columns:
+    pin_cols.append("_sample_quality")    # <- pin badge
+for c in [team_col, pos_col]:
+    if c and c in table.columns and c not in pin_cols:
+        pin_cols.append(c)
+gb.configure_columns(pin_cols, pinned=True)
+
+if "score" in table.columns:
+    gb.configure_column("score", sort="desc")
+
 go = gb.build()
 
-# Faz autofit das colunas automaticamente
-go["onFirstDataRendered"] = JsCode("""
-function(params) {
-    params.api.sizeColumnsToFit();
+# ---- Auto-size real pelo conteúdo (sem cortar texto) ----
+# mede colunas fora do viewport
+go["suppressColumnVirtualisation"] = True
+
+_autoSizeBody = """
+function(p){
+  const cols = p.columnApi.getColumns();
+  if (!cols) return;
+  const ids = [];
+  cols.forEach(c => ids.push(c.getColId()));
+  // false => considera cabeçalhos também
+  p.columnApi.autoSizeColumns(ids, false);
 }
-""")
+"""
 
-AgGrid(
-    table,
-    gridOptions=go,
-    theme="balham",                       # tema claro
-    # columns_auto_size_mode=ColumnsAutoSizeMode.FIT_CONTENTS,  # opcional
-    height=650,
-    allow_unsafe_jscode=True              # <- NECESSÁRIO quando usas JsCode
-)
 
+go["onFirstDataRendered"] = JsCode(_autoSizeBody)
+
+# linhas/cabeçalho mais compactos
+go["rowHeight"] = 30             # default ~ 37
+go["headerHeight"] = 34          # default ~ 42
+
+
+# pesquisa global (quick filter) e autofit em render/resize
+q = st.text_input("🔎 Pesquisa global na tabela", "", placeholder="Nome, equipa, liga…")
+if q:
+    go["quickFilterText"] = q
+
+# 3) Tabs: Ranking / Gráficos rápidos
+tab1, tab2 = st.tabs(["📊 Ranking", "📈 Gráficos rápidos"])
+with tab1:
+    AgGrid(
+        table,
+        gridOptions=go,
+        theme="balham",
+        height=780,
+        allow_unsafe_jscode=True
+    )
+
+with tab2:
+    # gráfico simples: distribuição do score ou percentis
+    _opts = [c for c in table.columns if c in ("score","score_0_100") or str(c).endswith("_pct")]
+    if _opts:
+        sel = st.selectbox("Distribuição de:", _opts, index=0)
+        chart = alt.Chart(table).mark_bar().encode(
+            x=alt.X(f"{sel}:Q", bin=alt.Bin(maxbins=30)),
+            y='count()',
+            tooltip=[str(name_col), sel]
+        ).properties(height=320)
+        st.altair_chart(chart, use_container_width=True)
+    else:
+        st.info("Sem colunas numéricas selecionáveis para gráfico.")
 # ================== /TABELA (AgGrid) ==================
-
-
+st.caption("Score bruto = soma(peso × z‑score). Score (0–100) = percentil do score dentro do conjunto filtrado.")
 # Exportações
 csv_bytes = out.to_csv(index=False).encode("utf-8")
 st.download_button("⬇️ Exportar CSV", data=csv_bytes, file_name=f"ranking_{profile}.csv", mime="text/csv")
@@ -840,3 +1096,7 @@ if preset_up:
         st.sidebar.success("Preset carregado (aplica manualmente as escolhas na UI).")
     except Exception as e:
         st.sidebar.error(f"Preset inválido: {e}")
+
+
+
+
