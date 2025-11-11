@@ -237,9 +237,14 @@ team_col_g     = guess(["team","equipa","clube"], default=None)
 division_col_g = guess(["division","league","competition","competição","liga","season"], default=None)
 age_col_g      = guess(["age","idade"], default=None)
 pos_col        = guess(["pos","posição","position","role"])
+# +++ NOVO +++
+height_col_g   = guess(["height","altura","height (cm)"], default=None)
+foot_col_g     = guess(["strong foot","preferred foot","pe preferido","pé preferido","foot"], default=None)
+
 minutes_col    = guess(["min","minutes","mins","minutos"])
 value_col      = guess(["market","valor","value","valormercado"], default=None)
 contract_col   = guess(["contract","contrato","expiry","end"], default=None)
+
 
 
 with st.sidebar.expander("⚙️ Mapeamento", expanded=True):
@@ -251,6 +256,15 @@ with st.sidebar.expander("⚙️ Mapeamento", expanded=True):
     age_col = st.selectbox("Idade (opcional)", options=["(não usar)"] + list(df.columns),
                            index=(0 if age_col_g is None else list(df.columns).index(age_col_g)+1))
     pos_col     = st.selectbox("Posição (texto)", options=df.columns, index=list(df.columns).index(pos_col))
+    # +++ NOVO +++
+    height_col = st.selectbox(
+    "Altura (opcional)", options=["(não usar)"] + list(df.columns),
+    index=(0 if height_col_g is None else list(df.columns).index(height_col_g)+1)
+    )
+    foot_col = st.selectbox(
+        "Pé preferido (opcional)", options=["(não usar)"] + list(df.columns),
+        index=(0 if foot_col_g is None else list(df.columns).index(foot_col_g)+1)
+    )
     minutes_col = st.selectbox("Minutos", options=df.columns, index=list(df.columns).index(minutes_col))
     value_col = st.selectbox(
         "Valor de mercado (opcional)", options=["(não usar)"] + list(df.columns),
@@ -286,6 +300,15 @@ if value_col != "(não usar)":
 # ---- FIM DE CONTRATO (igual ao que tinhas) ----
 if contract_col != "(não usar)":
     dfw["_contract_end"] = dfw[contract_col].apply(to_date_any)
+
+# +++ NOVO +++
+if height_col != "(não usar)":
+    # guarda como numérico (cm)
+    dfw["_height_cm"] = pd.to_numeric(dfw[height_col], errors="coerce")
+
+if foot_col != "(não usar)":
+    # normaliza como string curta (ex.: 'Left'/'Right')
+    dfw["_strong_foot"] = dfw[foot_col].astype(str).str.strip()
 
 # ----------------------- Controlo dos filtros (no mesmo grupo) -----------------------
 # Valor de mercado — filtro por MÁXIMO (inclui sem valor → tratados como 0)
@@ -335,6 +358,25 @@ else:
 # aplica idade diretamente em dfw (antes do perfil/etiquetas)
 if age_range and "_age_num" in dfw.columns:
     dfw = dfw[dfw["_age_num"].between(age_range[0], age_range[1])].copy()
+
+# +++ NOVO: slider de Altura (cm) — mínimo fixo de 140
+height_range = None
+if "_height_cm" in dfw.columns and dfw["_height_cm"].notna().any():
+    hvals = pd.to_numeric(dfw["_height_cm"], errors="coerce")
+    hvals = hvals[np.isfinite(hvals)]
+    if len(hvals):
+        hmin = 140  # mínimo fixo
+        hmax = int(np.ceil(hvals.max()))
+        if hmax < hmin:
+            hmax = hmin + 1
+        height_range = st.sidebar.slider(
+            "Altura (cm)",
+            min_value=hmin,
+            max_value=hmax,
+            value=(hmin, hmax)
+        )
+else:
+    height_range = None
 
 
 # ----------------------- Perfis & defaults -----------------------
@@ -705,6 +747,10 @@ if val_range and "_market_value" in dfp.columns:
     dfp = dfp[dfp["_market_value"].between(val_range[0], val_range[1])]
 if (d_from and d_to) and "_contract_end" in dfp.columns:
     dfp = dfp[dfp["_contract_end"].apply(lambda x: x is not None and d_from <= x <= d_to)]
+# +++ NOVO: aplicar filtro de Altura
+if height_range and "_height_cm" in dfp.columns:
+    dfp = dfp[dfp["_height_cm"].between(height_range[0], height_range[1])]
+
 
 if not len(dfp):
     st.warning("Nenhum jogador cumpre os filtros/etiquetas selecionados.")
@@ -766,6 +812,11 @@ if "_sample_quality" in dfp.columns and "_sample_quality" not in show_cols:
 if team_col != "(não usar)":
     show_cols.append(team_col)
 show_cols.append(pos_col)
+# +++ NOVO: inserir Altura e Pé preferido logo a seguir à posição
+if "_height_cm" in dfp.columns:
+    show_cols.append("_height_cm")
+if "_strong_foot" in dfp.columns:
+    show_cols.append("_strong_foot")
 if division_col != "(não usar)":
     show_cols.append(division_col)
 if age_col != "(não usar)":
@@ -797,6 +848,8 @@ name_counts = defaultdict(int)
 def target_name(src_name: str) -> str:
     if src_name == "_market_value": return "market_value"
     if src_name == "_contract_end": return "contract_end"
+    if src_name == "_height_cm": return "Height (cm)"
+    if src_name == "_strong_foot": return "Strong Foot"    
     return str(src_name)
 
 for src in ordered_unique:
@@ -1096,7 +1149,4 @@ if preset_up:
         st.sidebar.success("Preset carregado (aplica manualmente as escolhas na UI).")
     except Exception as e:
         st.sidebar.error(f"Preset inválido: {e}")
-
-
-
 
