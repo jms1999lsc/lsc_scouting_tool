@@ -1172,7 +1172,7 @@ if preset_up:
 
         # 1) Perfil
         if "profile" in P and P["profile"] in PROFILES:
-            st.session_state["profile_sel"] = P["profile"]
+            st.session_state["_pending_profile"] = P["profile"]
 
         # 2) Etiquetas (dependem da key dinâmica labels_<perfil>)
         if "profile" in P and "profile_labels" in P:
@@ -1212,7 +1212,10 @@ if preset_up:
                 st.session_state[f"w_{i}"] = 0.0
 
         st.sidebar.success("✅ Preset carregado. A aplicar…")
+        if "_pending_profile" in st.session_state:
+            st.session_state["profile_sel"] = st.session_state.pop("_pending_profile")
         st.rerun()
 
     except Exception as e:
         st.sidebar.error(f"Preset inválido: {e}")
+
