@@ -208,20 +208,20 @@ with st.sidebar:
     st.markdown("---")
 
 
-# Pré‑visualização opcional
+# Pré-visualização opcional
 show_preview = st.sidebar.checkbox("Mostrar pré-visualização do CSV", value=False)
 if show_preview:
-    st.subheader("Pré‑visualização")
+    st.subheader("Pré-visualização")
     st.dataframe(df.head(20), use_container_width=True)
 
 # ----------------------- Upload -----------------------
 # ------- Upload (em expander para não ocupar o topo) -------
-with st.expander("📁 Dados — Carregar & Pré‑visualizar", expanded=False):
+with st.expander("📁 Dados — Carregar & Pré-visualizar", expanded=False):
     uploaded = st.file_uploader("Carrega um CSV", type=["csv"], label_visibility="visible")
     st.caption("Limite 200MB por ficheiro • CSV")
 
 if uploaded is None:
-    st.info("Carrega um CSV em **📁 Dados — Carregar & Pré‑visualizar** para começar.")
+    st.info("Carrega um CSV em **📁 Dados — Carregar & Pré-visualizar** para começar.")
     st.stop()
 
 content = uploaded.read()
@@ -647,12 +647,13 @@ profile_labels = st.sidebar.multiselect(
     key=f"labels_{profile}"               # <- força reset ao mudar de perfil
 )
 
-# Métricas (5) + override "já é per90/%"
+# Métricas (5) + override "já é per90/%" + POLARIDADE
 st.sidebar.subheader("Métricas (5)")
 defaults = suggest_defaults(PROFILES[profile], metric_candidates)
 
 PLACEHOLDER = "(escolher métrica)"
 metric_slots, already_norm_flags = [], []
+polarity_flags = []  # +++ NOVO +++
 
 for i in range(5):
     options = [PLACEHOLDER] + (metric_candidates if metric_candidates else [])
@@ -670,10 +671,11 @@ for i in range(5):
     )
 
     if mcol == PLACEHOLDER:
-        # slot vazio (utilizador ainda não escolheu) → não cria checkbox
+        # slot vazio (utilizador ainda não escolheu) → mantém neutro
         st.sidebar.caption("Escolhe uma métrica para este slot.")
         metric_slots.append(None)
         already_norm_flags.append(False)
+        polarity_flags.append(+1)  # +++ NOVO: neutro quando vazio
         continue
 
     # inferir automaticamente se já é per90/% (podes corrigir no checkbox)
@@ -684,6 +686,10 @@ for i in range(5):
         key=f"metric_norm_{i}"
     )
     st.sidebar.caption("Deteção sugere 'já normalizada'." if infer_norm else "Deteção sugere 'raw' → converter p/90.")
+
+    # +++ NOVO: polaridade (menor é melhor → inverter)
+    invert = st.sidebar.checkbox("Menor é melhor (inverter)", value=False, key=f"metric_inv_{i}")
+    polarity_flags.append(-1 if invert else +1)
 
     metric_slots.append(mcol)
     already_norm_flags.append(flag)
@@ -751,15 +757,17 @@ if (d_from and d_to) and "_contract_end" in dfp.columns:
 if height_range and "_height_cm" in dfp.columns:
     dfp = dfp[dfp["_height_cm"].between(height_range[0], height_range[1])]
 
-
 if not len(dfp):
     st.warning("Nenhum jogador cumpre os filtros/etiquetas selecionados.")
     st.stop()
 
+# ----------------------- Score (com POLARIDADE) -----------------------
 dfp["score"] = sum(
-    weights[src] * dfp[(src if (flag or is_per90_colname(src)) else f"{src}_p90") + "_z"]
-    for src, flag in zip(metric_slots, already_norm_flags)
-    if src and src in weights  # <— ignora slots vazios
+    weights[src]
+    * pol
+    * dfp[(src if (flag or is_per90_colname(src)) else f"{src}_p90") + "_z"]
+    for src, flag, pol in zip(metric_slots, already_norm_flags, polarity_flags)
+    if src and src in weights  # ignora slots vazios
 )
 dfp["score_0_100"] = (dfp["score"].rank(pct=True) * 100).round(1)
 
@@ -794,16 +802,20 @@ if _s_contract is not None:
 else:
     _n_expiring = 0
 k1.metric("Jogadores", f"{len(dfp):,}".replace(",","."))
+
 if age_col != "(não usar)" and age_col in dfp.columns:
     k2.metric("Idade média", f"{pd.to_numeric(dfp[age_col], errors='coerce').mean():.1f}")
 else:
     k2.metric("Idade média", "—")
+
 if "contract_end" in dfp.columns:
     _days = (pd.to_datetime(dfp["contract_end"], errors="coerce") - pd.Timestamp.today()).dt.days
     k3.metric("Contrato < 12 meses", _n_expiring)
 else:
     k3.metric("Contrato < 12 meses", 0)
+
 st.markdown("<hr>", unsafe_allow_html=True)
+
 # Ordem base: Nome, Equipa, Posição, Divisão, Idade, Minutos, extras, Scores, Métricas(+pct)
 show_cols = [name_col]
 # inserir a badge de qualidade logo a seguir ao nome
@@ -1114,7 +1126,7 @@ with tab2:
     else:
         st.info("Sem colunas numéricas selecionáveis para gráfico.")
 # ================== /TABELA (AgGrid) ==================
-st.caption("Score bruto = soma(peso × z‑score). Score (0–100) = percentil do score dentro do conjunto filtrado.")
+st.caption("Score bruto = soma(peso × z-score). Score (0–100) = percentil do score dentro do conjunto filtrado.")
 # Exportações
 csv_bytes = out.to_csv(index=False).encode("utf-8")
 st.download_button("⬇️ Exportar CSV", data=csv_bytes, file_name=f"ranking_{profile}.csv", mime="text/csv")
@@ -1138,6 +1150,7 @@ preset = {
     "value_col": value_col, "contract_col": contract_col,
     "profile": profile, "profile_labels": profile_labels,
     "metric_slots": metric_slots, "already_norm_flags": already_norm_flags,
+    "polarity_flags": polarity_flags,  # +++ NOVO: guarda polaridade nos presets
     "weights": weights, "min_minutes": int(min_minutes),
 }
 st.sidebar.download_button("💾 Guardar preset", data=json.dumps(preset, ensure_ascii=False).encode("utf-8"),
@@ -1147,6 +1160,10 @@ if preset_up:
     try:
         P = json.loads(preset_up.read().decode("utf-8"))
         st.sidebar.success("Preset carregado (aplica manualmente as escolhas na UI).")
+        # (Opcional) se quiseres pré-preencher os toggles da UI com a polaridade do preset:
+        # if "polarity_flags" in P:
+        #     for i, pol in enumerate(P["polarity_flags"][:5]):
+        #         st.session_state[f"metric_inv_{i}"] = (pol == -1)
     except Exception as e:
         st.sidebar.error(f"Preset inválido: {e}")
 
