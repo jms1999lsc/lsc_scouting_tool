@@ -6,13 +6,14 @@ import pandas as pd
 import streamlit as st
 from st_aggrid import AgGrid, GridOptionsBuilder, ColumnsAutoSizeMode, JsCode
 import altair as alt
-
+from pathlib import Path
+import re, unicodedata, difflib
 
 # ---- PASSWORD LOGIN ----
 def check_password():
     """Password simples para proteger a app"""
     def password_entered():
-        if st.session_state["password"] == st.secrets["password"]:
+        if st.session_state.get("password", "") == st.secrets["password"]:
             st.session_state["password_correct"] = True
             del st.session_state["password"]  # apaga da memória
         else:
@@ -38,57 +39,23 @@ st.set_page_config(
     initial_sidebar_state="expanded",
 )
 
+# --------- CSS (layout leve) ----------
 st.markdown("""
 <style>
-/* menos “ar” no topo/baixo da página */
 div.block-container { padding-top: .6rem; padding-bottom: .4rem; }
-/* tabs mais juntinhas */
 .stTabs [role="tablist"] { margin-bottom: .25rem; }
-/* métricas (KPIs) com menos altura */
 .css-1xarl3l, .stMetric { padding: .25rem .5rem; }
-</style>
-""", unsafe_allow_html=True)
 
+/* Sidebar compacta */
+section[data-testid="stSidebar"] div[data-testid="stSidebarContent"]{ padding-top: 0px !important; }
+[data-testid="stSidebar"][aria-expanded="true"]{ min-width: 260px; max-width: 260px; }
+section[data-testid="stSidebar"] img{ display:block; margin: -50px auto 6px auto; }
 
-st.markdown("""
-<style>
-/* Sidebar mais compacta e colada ao topo */
-section[data-testid="stSidebar"] div[data-testid="stSidebarContent"]{
-  padding-top: 0px !important;
-}
+div[role="button"][data-baseweb="accordion"]{ padding: 2px 8px !important; }
+div[data-testid="stExpander"] div[role="button"] p{ margin: 4px 0 !important; }
+section[data-testid="stSidebar"] hr{ border: none; border-top: 1px solid #e7e9ee; margin: 14px 0; }
 
-/* Largura consistente da sidebar (ajusta a gosto) */
-[data-testid="stSidebar"][aria-expanded="true"]{
-  min-width: 260px;
-  max-width: 260px;
-}
-
-/* Logo centrado e sem espaço extra */
-section[data-testid="stSidebar"] img{
-  display:block;
-  margin: -50px auto 6px auto;   /* topo, direita, baixo, esquerda */
-}
-
-/* Expanders mais “magros” */
-div[role="button"][data-baseweb="accordion"]{
-  padding: 2px 8px !important;
-}
-div[data-testid="stExpander"] div[role="button"] p{
-  margin: 4px 0 !important;
-}
-
-/* Linha separadora da sidebar com cor do clube */
-section[data-testid="stSidebar"] hr{
-  border: none;
-  border-top: 1px solid #e7e9ee;
-  margin: 14px 0;
-}
-</style>
-""", unsafe_allow_html=True)
-
-# CSS leve: esconde menu/rodapé e ajusta paddings
-st.markdown("""
-<style>
+/* esconder menu/rodapé */
 #MainMenu {visibility: hidden;}
 footer {visibility: hidden;}
 .block-container {padding-top: 0.8rem; padding-bottom: 2rem;}
@@ -137,7 +104,7 @@ def to_date_any(x):
             return d.date()
         except Exception:
             pass
-    for fmt in ("%b %y", "%b %Y", "%m/%Y", "%Y-%m"):  # ex.: Jun 29, Jun 2029, 06/2029, 2029-06
+    for fmt in ("%b %y", "%b %Y", "%m/%Y", "%Y-%m"):
         try:
             d = pd.to_datetime(s, format=fmt)
             d = d + pd.offsets.MonthEnd(1)
@@ -154,11 +121,6 @@ def guess(tokens, default=None):
     return default or df.columns[0]
 
 def infer_already_normalized(series: pd.Series, minutes: pd.Series) -> bool:
-    """
-    Heurística:
-    - Se valores parecem %/taxa (0–1 ou 0–100) -> True (já normalizada)
-    - Senão, mede correlação |r| com minutos; r<0.35 -> True (provável per90); r>=0.35 -> False (raw)
-    """
     s = pd.to_numeric(series, errors="coerce")
     m = pd.to_numeric(minutes, errors="coerce")
     s = s.replace([np.inf, -np.inf], np.nan)
@@ -166,16 +128,13 @@ def infer_already_normalized(series: pd.Series, minutes: pd.Series) -> bool:
     s2, m2 = s[valid], m[valid]
     if len(s2) >= 20:
         q1, q99 = s2.quantile(0.01), s2.quantile(0.99)
-        if 0 <= q1 and q99 <= 1.0:
-            return True
-        if 0 <= q1 and q99 <= 100.0:
-            return True
+        if 0 <= q1 and q99 <= 1.0: return True
+        if 0 <= q1 and q99 <= 100.0: return True
         r = np.corrcoef(s2, m2)[0,1]
         return abs(r) < 0.35
     return is_per90_colname(series.name)
 
 def make_unique(columns):
-    """Garante nomes de colunas únicos: repete com sufixos .1, .2, ..."""
     counts = {}
     new = []
     for c in map(str, columns):
@@ -187,35 +146,22 @@ def make_unique(columns):
             new.append(c)
     return new
 
-
-# --- LOGO compacto e centrado (substitui o bloco anterior do logo) ---
-from pathlib import Path
-logo_path = Path(__file__).with_name("logo.png")  # precisa que o ficheiro se chame logo.png
-
+# --- LOGO no topo da sidebar ---
 with st.sidebar:
-    # centrado e pequeno
+    logo_path = Path(__file__).with_name("logo.png")
     _l, _c, _r = st.columns([1, 2, 1])
     with _c:
         if logo_path.exists():
-            st.image(str(logo_path), width=100)  # ajusta 60–100 a gosto
+            st.image(str(logo_path), width=100)
         else:
             st.caption("logo.png não encontrado")
-
     st.markdown(
         "<h3 style='text-align:center; color:#bd0003; margin-top:6px;'>Leixões SC - Dept. Scouting</h3>",
         unsafe_allow_html=True
     )
     st.markdown("---")
 
-
-# Pré-visualização opcional
-show_preview = st.sidebar.checkbox("Mostrar pré-visualização do CSV", value=False)
-if show_preview:
-    st.subheader("Pré-visualização")
-    st.dataframe(df.head(20), use_container_width=True)
-
-# ----------------------- Upload -----------------------
-# ------- Upload (em expander para não ocupar o topo) -------
+# ====== Upload em expander ======
 with st.expander("📁 Dados — Carregar & Pré-visualizar", expanded=False):
     uploaded = st.file_uploader("Carrega um CSV", type=["csv"], label_visibility="visible")
     st.caption("Limite 200MB por ficheiro • CSV")
@@ -230,22 +176,17 @@ if df is None:
     st.error("Não consegui ler o CSV (verifica o separador).")
     st.stop()
 
-
 # ----------------------- Mapeamento mínimo -----------------------
 name_col       = guess(["name","player","jogador"])
 team_col_g     = guess(["team","equipa","clube"], default=None)
 division_col_g = guess(["division","league","competition","competição","liga","season"], default=None)
 age_col_g      = guess(["age","idade"], default=None)
 pos_col        = guess(["pos","posição","position","role"])
-# +++ NOVO +++
 height_col_g   = guess(["height","altura","height (cm)"], default=None)
 foot_col_g     = guess(["strong foot","preferred foot","pe preferido","pé preferido","foot"], default=None)
-
 minutes_col    = guess(["min","minutes","mins","minutos"])
 value_col      = guess(["market","valor","value","valormercado"], default=None)
 contract_col   = guess(["contract","contrato","expiry","end"], default=None)
-
-
 
 with st.sidebar.expander("⚙️ Mapeamento", expanded=True):
     name_col    = st.selectbox("Nome do jogador", options=df.columns, index=list(df.columns).index(name_col))
@@ -256,133 +197,116 @@ with st.sidebar.expander("⚙️ Mapeamento", expanded=True):
     age_col = st.selectbox("Idade (opcional)", options=["(não usar)"] + list(df.columns),
                            index=(0 if age_col_g is None else list(df.columns).index(age_col_g)+1))
     pos_col     = st.selectbox("Posição (texto)", options=df.columns, index=list(df.columns).index(pos_col))
-    # +++ NOVO +++
-    height_col = st.selectbox(
-    "Altura (opcional)", options=["(não usar)"] + list(df.columns),
-    index=(0 if height_col_g is None else list(df.columns).index(height_col_g)+1)
-    )
-    foot_col = st.selectbox(
-        "Pé preferido (opcional)", options=["(não usar)"] + list(df.columns),
-        index=(0 if foot_col_g is None else list(df.columns).index(foot_col_g)+1)
-    )
+    height_col  = st.selectbox("Altura (opcional)", options=["(não usar)"] + list(df.columns),
+                               index=(0 if height_col_g is None else list(df.columns).index(height_col_g)+1))
+    foot_col    = st.selectbox("Pé preferido (opcional)", options=["(não usar)"] + list(df.columns),
+                               index=(0 if foot_col_g is None else list(df.columns).index(foot_col_g)+1))
     minutes_col = st.selectbox("Minutos", options=df.columns, index=list(df.columns).index(minutes_col))
-    value_col = st.selectbox(
-        "Valor de mercado (opcional)", options=["(não usar)"] + list(df.columns),
-        index=(0 if value_col is None else list(df.columns).index(value_col)+1)
-    )
-    contract_col = st.selectbox(
-        "Fim de contrato (opcional)", options=["(não usar)"] + list(df.columns),
-        index=(0 if contract_col is None else list(df.columns).index(contract_col)+1)
-    )
+    value_col   = st.selectbox("Valor de mercado (opcional)", options=["(não usar)"] + list(df.columns),
+                               index=(0 if value_col is None else list(df.columns).index(value_col)+1))
+    contract_col = st.selectbox("Fim de contrato (opcional)", options=["(não usar)"] + list(df.columns),
+                                index=(0 if contract_col is None else list(df.columns).index(contract_col)+1))
 
-# ----------------------- Filtros (juntos) -----------------------
+# ----------------------- Preparar dataframe base -----------------------
 st.sidebar.markdown("---")
 st.sidebar.subheader("Filtros")
-min_minutes = st.sidebar.slider("Minutos mínimos", 0, 4500, 900, 30, key="min_minutes")
-age_range = None          # ← NEW
-val_range = None
-d_from = d_to = None
 
-# ----------------------- Preparar dataframe -----------------------
 dfw = df.copy()
 dfw[minutes_col] = pd.to_numeric(dfw[minutes_col], errors="coerce")
-dfw = dfw[dfw[minutes_col].notna() & (dfw[minutes_col] >= min_minutes)].copy()
+# (o slider de minutos é criado mais abaixo, depois da aplicação do preset pendente)
 
-# ---- IDADE (novo) ----
+# ---- Variáveis derivadas para filtros ----
 if age_col != "(não usar)":
     dfw["_age"] = pd.to_numeric(dfw[age_col], errors="coerce")
-
-# ---- VALOR DE MERCADO (igual ao que tinhas) ----
 if value_col != "(não usar)":
     dfw["_market_value"] = pd.to_numeric(dfw[value_col], errors="coerce")
-    dfw["_market_value_flt"] = dfw["_market_value"].fillna(0)  # <- NOVO (só para filtro)
-
-# ---- FIM DE CONTRATO (igual ao que tinhas) ----
+    dfw["_market_value_flt"] = dfw["_market_value"].fillna(0)
 if contract_col != "(não usar)":
     dfw["_contract_end"] = dfw[contract_col].apply(to_date_any)
-
-# +++ NOVO +++
 if height_col != "(não usar)":
-    # guarda como numérico (cm)
     dfw["_height_cm"] = pd.to_numeric(dfw[height_col], errors="coerce")
-
 if foot_col != "(não usar)":
-    # normaliza como string curta (ex.: 'Left'/'Right')
     dfw["_strong_foot"] = dfw[foot_col].astype(str).str.strip()
 
-# ----------------------- Controlo dos filtros (no mesmo grupo) -----------------------
-# Valor de mercado — filtro por MÁXIMO (inclui sem valor → tratados como 0)
+# ==================== APLICAR PRESET PENDENTE (antes de criar widgets) ====================
+if "_pending_preset" in st.session_state:
+    P = st.session_state.pop("_pending_preset")
+    # Perfil e etiquetas
+    if "profile" in P:
+        st.session_state["profile_sel"] = P["profile"]
+        if "profile_labels" in P:
+            st.session_state[f"labels_{P['profile']}"] = P["profile_labels"]
+    # Minutos mínimos
+    if "min_minutes" in P:
+        st.session_state["min_minutes"] = int(P["min_minutes"])
+    # Métricas/flags
+    if "metric_slots" in P:
+        for i in range(5):
+            val = P["metric_slots"][i] if i < len(P["metric_slots"]) else None
+            st.session_state[f"metric_sel_{i}"] = val if val else "(escolher métrica)"
+    if "already_norm_flags" in P:
+        for i, flag in enumerate(P["already_norm_flags"]):
+            st.session_state[f"metric_norm_{i}"] = bool(flag)
+    # Pesos
+    if "weights" in P and P["weights"]:
+        slots = []
+        for i in range(5):
+            slots.append(st.session_state.get(f"metric_sel_{i}", None))
+        w_list = []
+        for met in slots:
+            if met and met in P["weights"]:
+                w_list.append(P["weights"][met])
+            else:
+                w_list.append(0.0)
+        for i, w in enumerate(w_list):
+            st.session_state[f"w_{i}"] = float(w)
+    # (Opcional) Mapeamentos: dar keys aos selectboxes do mapeamento e setar aqui.
+    # st.rerun()  # não é necessário porque vamos criar os widgets já com as chaves setadas
+
+# ----------------------- Filtros (agora com keys) -----------------------
+min_minutes = st.sidebar.slider("Minutos mínimos", 0, 4500, 900, 30, key="min_minutes")
+
+# aplica o filtro de minutos
+dfw = dfw[dfw[minutes_col].notna() & (dfw[minutes_col] >= min_minutes)].copy()
+
+# Valor de mercado — filtro máximo (inclui NA como 0)
 if "_market_value_flt" in dfw.columns:
     mv_ceiling = float(dfw["_market_value_flt"].max()) if np.isfinite(dfw["_market_value_flt"].max()) else 0.0
-    mv_max_sel = st.sidebar.slider(
-        "Valor de Mercado",
-        min_value=0.0,
-        max_value=mv_ceiling,
-        value=mv_ceiling,
-    )
-else:
-    mv_max_sel = None
-
-if mv_max_sel is not None and "_market_value_flt" in dfw.columns:
+    mv_max_sel = st.sidebar.slider("Valor de Mercado", min_value=0.0, max_value=mv_ceiling, value=mv_ceiling)
     dfw = dfw[dfw["_market_value_flt"] <= mv_max_sel].copy()
 
-
 # Fim de contrato
+d_from = d_to = None
 if "_contract_end" in dfw.columns and dfw["_contract_end"].notna().any():
     dates_present = [d for d in dfw["_contract_end"] if d is not None]
     if dates_present:
         dmin, dmax = min(dates_present), max(dates_present)
         d_from, d_to = st.sidebar.date_input("Fim de contrato entre", value=(dmin, dmax))
-    else:
-        d_from = d_to = None
-else:
-    d_from = d_to = None
 
-# Idade (novo)
-# ---- IDADE (slider) ----
+# Idade
+age_range = None
 if age_col != "(não usar)":
     dfw["_age_num"] = pd.to_numeric(dfw[age_col], errors="coerce")
     if dfw["_age_num"].notna().any():
-        a_min = int(np.nanmin(dfw["_age_num"]))
-        a_max = int(np.nanmax(dfw["_age_num"]))
-        # limites defensivos
-        a_min = max(15, a_min)
-        a_max = min(45, a_max)
-        age_range = st.sidebar.slider("Idade", min_value=a_min, max_value=a_max,
-                                      value=(a_min, a_max))
-    else:
-        age_range = None
-else:
-    age_range = None
+        a_min = max(15, int(np.nanmin(dfw["_age_num"])))
+        a_max = min(45, int(np.nanmax(dfw["_age_num"])))
+        age_range = st.sidebar.slider("Idade", min_value=a_min, max_value=a_max, value=(a_min, a_max))
+    if age_range:
+        dfw = dfw[dfw["_age_num"].between(age_range[0], age_range[1])].copy()
 
-# aplica idade diretamente em dfw (antes do perfil/etiquetas)
-if age_range and "_age_num" in dfw.columns:
-    dfw = dfw[dfw["_age_num"].between(age_range[0], age_range[1])].copy()
-
-# +++ NOVO: slider de Altura (cm) — mínimo fixo de 140
+# Altura
 height_range = None
 if "_height_cm" in dfw.columns and dfw["_height_cm"].notna().any():
     hvals = pd.to_numeric(dfw["_height_cm"], errors="coerce")
     hvals = hvals[np.isfinite(hvals)]
     if len(hvals):
-        hmin = 140  # mínimo fixo
+        hmin = 140
         hmax = int(np.ceil(hvals.max()))
-        if hmax < hmin:
-            hmax = hmin + 1
-        height_range = st.sidebar.slider(
-            "Altura (cm)",
-            min_value=hmin,
-            max_value=hmax,
-            value=(hmin, hmax)
-        )
-else:
-    height_range = None
-
+        if hmax < hmin: hmax = hmin + 1
+        height_range = st.sidebar.slider("Altura (cm)", min_value=hmin, max_value=hmax, value=(hmin, hmax))
+        dfw = dfw[dfw["_height_cm"].between(height_range[0], height_range[1])].copy()
 
 # ----------------------- Perfis & defaults -----------------------
-# =========== Matching robusto de métricas ===========
-import re, unicodedata, difflib
-
 def _norm(s: str) -> str:
     if s is None: return ""
     s = unicodedata.normalize("NFKD", str(s)).encode("ascii", "ignore").decode("ascii")
@@ -390,107 +314,32 @@ def _norm(s: str) -> str:
     s = re.sub(r"\s+", " ", s).strip()
     return s
 
-def _tokens(s: str) -> list[str]:
-    return re.findall(r"[a-z0-9]+", _norm(s))
+def _is_per90_name(name: str) -> bool:
+    return bool(re.search(r"\b(p90|per90|per 90)\b", _norm(name)))
 
-# regras por conceito: include/exclude/prefer aumentam ou reduzem a pontuação
 METRIC_RULES = {
-    "prog_passes": {
-        "include": ["progressive pass","prog pass","passes progressivos","passe progressivo"],
-        "prefer":  ["per90","p90"],
-        "exclude": ["against","opp","allowed","conced","intercepted"]
-    },
-    "vertical_passes": {
-        "include": ["vertical pass","passe vertical"],
-        "prefer":  ["per90","p90"],
-        "exclude": ["against","opp","allowed"]
-    },
-    "first_phase": {
-        "include": ["first phase","build up","deep third","fase inicial","saida","construcao"],
-        "prefer":  ["per90","p90"],
-        "exclude": ["against","opp","allowed"]
-    },
-    "key_passes": {
-        "include": ["key pass","pass to shot","passe chave","assist"],
-        "prefer":  ["per90","p90"],
-        "exclude": ["assistente","coach","against","opp","allowed"]
-    },
-    "final_third": {
-        "include": ["final third","terco final","ultimo terco","passe 3 terco"],
-        "prefer":  ["per90","p90"],
-        "exclude": ["against","opp","allowed"]
-    },
-    "pen_area": {
-        "include": ["penalty area","area pass","toques na area","pen area","caixa"],
-        "prefer":  ["per90","p90"],
-        "exclude": ["against","opp","allowed"]
-    },
-    "recoveries": {
-        "include": ["recovery","recuperacao","recuperacoes"],
-        "prefer":  ["per90","p90"], "exclude": []
-    },
-    "press_succ": {
-        "include": ["press success","successful press","counterpress","gegenpress","pressao"],
-        "prefer":  ["per90","p90","%","pct"], "exclude": ["against","opp","allowed"]
-    },
-    "interceptions": {
-        "include": ["interception","intercep","interceptacoes"],
-        "prefer":  ["per90","p90"], "exclude": []
-    },
-    "tackles_won": {
-        "include": ["tackles won","tackle won","desarme","tackles ganhos"],
-        "prefer":  ["per90","p90"], "exclude": []
-    },
-    "aerial_won": {
-        "include": ["aerial duels won","aerial won","header won","duelo aereo ganho","cabecamentos ganhos"],
-        "prefer":  ["per90","p90"], "exclude": []
-    },
-    "clearances": {
-        "include": ["clearance","alivio","alivios"],
-        "prefer":  ["per90","p90"], "exclude": []
-    },
-    "blocks": {
-        "include": ["block","bloqueios","remates bloqueados"],
-        "prefer":  ["per90","p90"], "exclude": []
-    },
-    "carries": {
-        "include": ["carry","progressive run","conducao","conducoes"],
-        "prefer":  ["per90","p90"], "exclude": []
-    },
-    "dribbles": {
-        "include": ["dribble","1v1","dribles"],
-        "prefer":  ["per90","p90","%","pct"], "exclude": []
-    },
-    "shots": {
-        "include": ["shot","remate","shots total","remates"],
-        "prefer":  ["per90","p90"], "exclude": ["against","opp","allowed"]
-    },
-    "xg": {
-        "include": ["xg","expected goals","golos esperados"],
-        "prefer":  ["per90","p90"], "exclude": ["against","opp","allowed"]
-    },
-    "touches_box": {
-        "include": ["touches in box","area touches","toques na area"],
-        "prefer":  ["per90","p90"], "exclude": []
-    },
-    "crosses_acc": {
-        "include": ["cross accuracy","accurate crosses","cruzamentos certos","cross acc"],
-        "prefer":  ["%","pct"], "exclude": ["against","opp","allowed"]
-    },
-    # ---- Guarda-Redes ----
-    "gk_saves": {
-        "include": ["saves","save pct","% saves","shots saved","saves in box","defesas","paradas"],
-        "prefer":  ["%","pct","per90","p90"],
-        "exclude": ["saves faced","shots on target against","against","conceded","opp"]
-    },
-    "gk_claims": {
-        "include": ["claims","claim accuracy","high claims","cross(es) stopped","saidas","bolas altas"],
-        "prefer":  ["%","pct"], "exclude": ["against","opp","allowed"]
-    },
-    "gk_long": {
-        "include": ["long pass","goal kick","long distribution","passes longos","pontape longo","reposicoes longas"],
-        "prefer":  ["per90","p90"], "exclude": []
-    },
+    "prog_passes":     {"include":["progressive pass","prog pass","passes progressivos","passe progressivo"],"prefer":["per90","p90"],"exclude":["against","opp","allowed","conced","intercepted"]},
+    "vertical_passes": {"include":["vertical pass","passe vertical"],"prefer":["per90","p90"],"exclude":["against","opp","allowed"]},
+    "first_phase":     {"include":["first phase","build up","deep third","fase inicial","saida","construcao"],"prefer":["per90","p90"],"exclude":["against","opp","allowed"]},
+    "key_passes":      {"include":["key pass","pass to shot","passe chave","assist"],"prefer":["per90","p90"],"exclude":["assistente","coach","against","opp","allowed"]},
+    "final_third":     {"include":["final third","terco final","ultimo terco","passe 3 terco"],"prefer":["per90","p90"],"exclude":["against","opp","allowed"]},
+    "pen_area":        {"include":["penalty area","area pass","toques na area","pen area","caixa"],"prefer":["per90","p90"],"exclude":["against","opp","allowed"]},
+    "recoveries":      {"include":["recovery","recuperacao","recuperacoes"],"prefer":["per90","p90"],"exclude":[]},
+    "press_succ":      {"include":["press success","successful press","counterpress","gegenpress","pressao"],"prefer":["per90","p90","%","pct"],"exclude":["against","opp","allowed"]},
+    "interceptions":   {"include":["interception","intercep","interceptacoes"],"prefer":["per90","p90"],"exclude":[]},
+    "tackles_won":     {"include":["tackles won","tackle won","desarme","tackles ganhos"],"prefer":["per90","p90"],"exclude":[]},
+    "aerial_won":      {"include":["aerial duels won","aerial won","header won","duelo aereo ganho","cabecamentos ganhos"],"prefer":["per90","p90"],"exclude":[]},
+    "clearances":      {"include":["clearance","alivio","alivios"],"prefer":["per90","p90"],"exclude":[]},
+    "blocks":          {"include":["block","bloqueios","remates bloqueados"],"prefer":["per90","p90"],"exclude":[]},
+    "carries":         {"include":["carry","progressive run","conducao","conducoes"],"prefer":["per90","p90"],"exclude":[]},
+    "dribbles":        {"include":["dribble","1v1","dribles"],"prefer":["per90","p90","%","pct"],"exclude":[]},
+    "shots":           {"include":["shot","remate","shots total","remates"],"prefer":["per90","p90"],"exclude":["against","opp","allowed"]},
+    "xg":              {"include":["xg","expected goals","golos esperados"],"prefer":["per90","p90"],"exclude":["against","opp","allowed"]},
+    "touches_box":     {"include":["touches in box","area touches","toques na area"],"prefer":["per90","p90"],"exclude":[]},
+    "crosses_acc":     {"include":["cross accuracy","accurate crosses","cruzamentos certos","cross acc"],"prefer":["%","pct"],"exclude":["against","opp","allowed"]},
+    "gk_saves":        {"include":["saves","save pct","% saves","shots saved","saves in box","defesas","paradas"],"prefer":["%","pct","per90","p90"],"exclude":["saves faced","shots on target against","against","conceded","opp"]},
+    "gk_claims":       {"include":["claims","claim accuracy","high claims","cross(es) stopped","saidas","bolas altas"],"prefer":["%","pct"],"exclude":["against","opp","allowed"]},
+    "gk_long":         {"include":["long pass","goal kick","long distribution","passes longos","pontape longo","reposicoes longas"],"prefer":["per90","p90"],"exclude":[]},
 }
 
 PROFILES = {
@@ -499,7 +348,7 @@ PROFILES = {
  "Lateral Profundo":            ["crosses_acc","final_third","prog_passes","press_succ","recoveries"],
  "Lateral Associativo":         ["prog_passes","first_phase","key_passes","carries","dribbles"],
  "Defesa Central":              ["clearances","aerial_won","interceptions","tackles_won","blocks"],
- "Defesa Central Construtor":     ["prog_passes","vertical_passes","first_phase","carries","crosses_acc"],
+ "Defesa Central Construtor":   ["prog_passes","vertical_passes","first_phase","carries","crosses_acc"],
  "Médio Defensivo":             ["recoveries","interceptions","press_succ","tackles_won","prog_passes"],
  "Médio Defensivo Construtor":  ["first_phase","prog_passes","vertical_passes","final_third","recoveries"],
  "Médio Centro Progressivo":    ["prog_passes","vertical_passes","carries","key_passes","press_succ"],
@@ -508,23 +357,18 @@ PROFILES = {
  "Ponta de Lança Referência":   ["xg","shots","aerial_won","touches_box","key_passes"],
 }
 
-# Sugerir etiquetas (posições) por Perfil
 PROFILE_TO_LABELS = {
-    "Guarda Redes":                ["GK"],
-    "Guarda Redes construtor":     ["GK"],
-    "Lateral Profundo":            ["DL", "DML", "DR", "DMR"],
-    "Lateral Associativo":         ["DL", "DML", "DR", "DMR"],
-    "Defesa Central":              ["DC"],
-    "Defesa Central Construtor":     ["DC"],
-    "Médio Defensivo":             ["DMC", "MC"],
-    "Médio Defensivo Construtor":  ["DMC", "MC"],
-    "Médio Centro Progressivo":    ["MC", "AMC", "DMC"],
-    "Extremo":                     ["FWL", "AML", "ML", "FWD", "AMR", "MR"],
-    "Ponta de Lança":              ["FW"],
-    "Ponta de Lança Referência":   ["FW"],
+    "Guarda Redes": ["GK"], "Guarda Redes construtor": ["GK"],
+    "Lateral Profundo": ["DL","DML","DR","DMR"],
+    "Lateral Associativo": ["DL","DML","DR","DMR"],
+    "Defesa Central": ["DC"], "Defesa Central Construtor": ["DC"],
+    "Médio Defensivo": ["DMC","MC"], "Médio Defensivo Construtor": ["DMC","MC"],
+    "Médio Centro Progressivo": ["MC","AMC","DMC"],
+    "Extremo": ["FWL","AML","ML","FWD","AMR","MR"],
+    "Ponta de Lança": ["FW"], "Ponta de Lança Referência": ["FW"]
 }
 
-# Candidatos de métricas = todas as colunas à direita de "Minutos"
+# candidatos de métricas
 cols_order = list(dfw.columns)
 try:
     idx_minutes = cols_order.index(minutes_col)
@@ -532,86 +376,48 @@ except ValueError:
     idx_minutes = -1
 metric_candidates = cols_order[idx_minutes + 1:]
 
-def _is_per90_name(name: str) -> bool:
-    return bool(re.search(r"\b(p90|per90|per 90)\b", _norm(name)))
-
 def _score_column_for_rule(col: str, rule_key: str) -> float:
-    """Pontua um nome de coluna para um conceito."""
     coln = _norm(col)
     inc  = METRIC_RULES[rule_key].get("include", [])
     pref = METRIC_RULES[rule_key].get("prefer", [])
     exc  = METRIC_RULES[rule_key].get("exclude", [])
-
     score = 0.0
-
-    # penalizações fortes para termos proibidos
     for e in exc:
-        if re.search(rf"\b{re.escape(_norm(e))}\b", coln):
-            score -= 3.0
-
-    # matches de inclusão com fronteira de palavra
+        if re.search(rf"\b{re.escape(_norm(e))}\b", coln): score -= 3.0
     for i in inc:
         pat = rf"\b{re.escape(_norm(i))}\b"
-        if re.search(pat, coln):
-            score += 2.0
-
-    # preferências (per90, %, etc)
-    for p in pref:
-        if re.search(rf"\b{re.escape(_norm(p))}\b", coln):
-            score += 0.8
-
-    # boost adicional se o nome sugere per90
-    if _is_per90_name(coln):
-        score += 0.6
-
-    # similaridade aproximada (difflib) com as frases "include"
+        if re.search(pat, coln): score += 2.0
+    for p_ in pref:
+        if re.search(rf"\b{re.escape(_norm(p_))}\b", coln): score += 0.8
+    if _is_per90_name(coln): score += 0.6
     if inc:
         best = max(difflib.SequenceMatcher(None, coln, _norm(i)).ratio() for i in inc)
-        score += 1.2 * best  # 0..1.2
-
+        score += 1.2 * best
     return score
 
 def suggest_defaults(profile_key_list, candidates):
-    """
-    Devolve até 5 colunas sugeridas para o perfil, pontuando cada coluna
-    contra as regras de cada conceito do perfil.
-    - apenas colunas numéricas entram
-    - evita duplicados
-    """
-    # filtrar candidatos para colunas numéricas e remover identificadores
     id_like = {_norm(x) for x in [
         "name","player","team","equipa","club","clube","position","posicao","role",
-        "season","league","division","age","idade", "minutes","mins","minutos",
+        "season","league","division","age","idade","minutes","mins","minutos",
         "_market_value","market_value","_contract_end","contract_end"
     ]}
     usable = []
     for c in candidates:
-        if c not in dfw.columns: 
-            continue
-        if not pd.api.types.is_numeric_dtype(dfw[c]): 
-            continue
-        if _norm(c) in id_like: 
-            continue
+        if c not in dfw.columns: continue
+        if not pd.api.types.is_numeric_dtype(dfw[c]): continue
+        if _norm(c) in id_like: continue
         usable.append(c)
 
-    chosen = []
-    used    = set()
-
-    # 1) para cada conceito do perfil, escolher o melhor candidato acima de um threshold
+    chosen, used = [], set()
     for key in profile_key_list:
-        if key not in METRIC_RULES:
-            continue
+        if key not in METRIC_RULES: continue
         scored = [(c, _score_column_for_rule(c, key)) for c in usable if c not in used]
-        if not scored:
-            continue
+        if not scored: continue
         scored.sort(key=lambda x: x[1], reverse=True)
         best_col, best_score = scored[0]
-        # threshold conservador para evitar "chutes"
         if best_score >= 2.2 and best_col not in used:
-            chosen.append(best_col)
-            used.add(best_col)
+            chosen.append(best_col); used.add(best_col)
 
-    # 2) completar até 5 com as numéricas mais "informativas" (variância alta)
     if len(chosen) < 5:
         rest = [c for c in usable if c not in used]
         if rest:
@@ -620,115 +426,76 @@ def suggest_defaults(profile_key_list, candidates):
             vari.sort(key=lambda x: (x[1] if pd.notna(x[1]) else -1), reverse=True)
             for c, _ in vari:
                 chosen.append(c)
-                if len(chosen) >= 5:
-                    break
-
+                if len(chosen) >= 5: break
     return chosen[:5]
 
-# ----------------------- Sidebar: Perfil / Etiquetas / Métricas / Pesos -----------------------
+# -------- Sidebar: Perfil / Etiquetas --------
 st.sidebar.markdown("---")
 st.sidebar.subheader("Perfil / Etiquetas")
 profile = st.sidebar.selectbox("Perfil a ranquear", list(PROFILES.keys()), key="profile_sel")
-unique_pos_vals = sorted(map(str, dfw[pos_col].dropna().unique().tolist()))
 
-# Valores disponíveis na coluna de posição
 unique_pos_vals = sorted(map(str, dfw[pos_col].dropna().unique().tolist()))
-
-# Sugestões automáticas para o perfil atual (intersetadas com o que existe no CSV)
 suggested = PROFILE_TO_LABELS.get(profile, [])
 default_labels = [x for x in suggested if x in unique_pos_vals]
-
-# Multiselect (reinicia quando mudas o perfil; podes editar livremente)
 profile_labels = st.sidebar.multiselect(
     f"Etiquetas (posições) associadas a '{profile}'",
     options=unique_pos_vals,
-    default=default_labels,                # <- preenchido pelas sugestões do perfil
+    default=st.session_state.get(f"labels_{profile}", default_labels),
     placeholder="Seleciona uma ou mais posições…",
-    key=f"labels_{profile}"               # <- força reset ao mudar de perfil
+    key=f"labels_{profile}"
 )
 
-# Métricas (5) + override "já é per90/%" + POLARIDADE
+# -------- Métricas & Pesos --------
 st.sidebar.subheader("Métricas (5)")
 defaults = suggest_defaults(PROFILES[profile], metric_candidates)
-
 PLACEHOLDER = "(escolher métrica)"
 metric_slots, already_norm_flags = [], []
-polarity_flags = []  # +++ NOVO +++
 
 for i in range(5):
     options = [PLACEHOLDER] + (metric_candidates if metric_candidates else [])
-    # índice: se houver default válido, usa-o; senão fica no placeholder
-    if i < len(defaults) and defaults[i] in metric_candidates:
+    # default via session_state se existir
+    default_val = st.session_state.get(f"metric_sel_{i}", None)
+    if default_val and default_val in options:
+        idx = options.index(default_val)
+    elif i < len(defaults) and defaults[i] in metric_candidates:
         idx = 1 + metric_candidates.index(defaults[i])
     else:
         idx = 0
-
-    mcol = st.sidebar.selectbox(
-        f"Métrica {i+1}",
-        options=options,
-        index=idx,
-        key=f"metric_sel_{i}"
-    )
-
+    mcol = st.sidebar.selectbox(f"Métrica {i+1}", options=options, index=idx, key=f"metric_sel_{i}")
     if mcol == PLACEHOLDER:
-        # slot vazio (utilizador ainda não escolheu) → mantém neutro
         st.sidebar.caption("Escolhe uma métrica para este slot.")
-        metric_slots.append(None)
-        already_norm_flags.append(False)
-        polarity_flags.append(+1)  # +++ NOVO: neutro quando vazio
-        continue
-
-    # inferir automaticamente se já é per90/% (podes corrigir no checkbox)
+        metric_slots.append(None); already_norm_flags.append(False); continue
     infer_norm = infer_already_normalized(dfw[mcol], dfw[minutes_col])
-    flag = st.sidebar.checkbox(
-        "Já é per90/percentual (não converter)",
-        value=bool(infer_norm),
-        key=f"metric_norm_{i}"
-    )
+    flag = st.sidebar.checkbox("Já é per90/percentual (não converter)",
+                               value=st.session_state.get(f"metric_norm_{i}", bool(infer_norm)),
+                               key=f"metric_norm_{i}")
     st.sidebar.caption("Deteção sugere 'já normalizada'." if infer_norm else "Deteção sugere 'raw' → converter p/90.")
+    metric_slots.append(mcol); already_norm_flags.append(flag)
 
-    # +++ NOVO: polaridade (menor é melhor → inverter)
-    invert = st.sidebar.checkbox("Menor é melhor (inverter)", value=False, key=f"metric_inv_{i}")
-    polarity_flags.append(-1 if invert else +1)
-
-    metric_slots.append(mcol)
-    already_norm_flags.append(flag)
-
-# Aviso de repetidas (ignora slots vazios)
 chosen_metrics = [m for m in metric_slots if m]
 if len(set(chosen_metrics)) < len(chosen_metrics):
     st.sidebar.warning("⚠️ Tens métricas repetidas nos 5 slots — considera escolher 5 diferentes.")
 
-# Pesos (soma OBRIGATÓRIA = 1.00, sem normalizar e sem cálculo automático)
 st.sidebar.subheader("Pesos (total deve ser 1.00)")
-
 weights = {}
-chosen_metrics = [m for m in metric_slots if m]  # ignora slots vazios
-
 if not chosen_metrics:
     st.sidebar.info("Escolhe pelo menos 1 métrica para definir pesos.")
 else:
-    # sliders independentes (passo mais fino para ser fácil acertar 1.00)
     for i, met in enumerate(chosen_metrics):
-        weights[met] = st.sidebar.slider(met, 0.0, 1.0, 0.20, 0.01, key=f"w_{i}")
-
-    total_w = sum(weights.values())
-    eps = 1e-6  # tolerância numérica
-
+        default_w = st.session_state.get(f"w_{i}", 0.20)
+        weights[met] = st.sidebar.slider(met, 0.0, 1.0, float(default_w), 0.01, key=f"w_{i}")
+    total_w = sum(weights.values()); eps = 1e-6
     if total_w > 1.0 + eps:
-        st.sidebar.error(f"❌ Os pesos somam {total_w:.2f} (> 1.00). Reduz um ou mais pesos.")
-        st.stop()
+        st.sidebar.error(f"❌ Os pesos somam {total_w:.2f} (> 1.00). Reduz um ou mais pesos."); st.stop()
     elif total_w < 1.0 - eps:
-        st.sidebar.error(f"❌ Os pesos somam {total_w:.2f} (< 1.00). Aumenta os pesos até perfazer 1.00.")
-        st.stop()
+        st.sidebar.error(f"❌ Os pesos somam {total_w:.2f} (< 1.00). Aumenta os pesos até perfazer 1.00."); st.stop()
     else:
         st.sidebar.caption("✅ Total = 1.00")
 
-# ----------------------- Preparar colunas per90 conforme flags -----------------------
+# -------- Preparar colunas per90 --------
 per90_cols = []
 for col, is_norm in zip(metric_slots, already_norm_flags):
-    if not col:
-        continue
+    if not col: continue
     if is_norm or is_per90_colname(col):
         dfw[col] = pd.to_numeric(dfw[col], errors="coerce").fillna(0)
         per90_cols.append(col)
@@ -739,62 +506,45 @@ for col, is_norm in zip(metric_slots, already_norm_flags):
         per90_cols.append(out_col)
 
 # ----------------------- Ranking -----------------------
-if profile_labels:
-    mask_pos = dfw[pos_col].astype(str).isin(profile_labels)
-else:
-    mask_pos = pd.Series(True, index=dfw.index)   # <- sem seleção = todas as posições
+mask_pos = dfw[pos_col].astype(str).isin(profile_labels) if profile_labels else pd.Series(True, index=dfw.index)
 dfp = dfw[mask_pos].copy()
 
 for met in set(per90_cols):
     dfp[met + "_z"]  = zscore_group(dfp[met], dfp[pos_col])
     dfp[met + "_pct"] = pct_group(dfp[met], dfp[pos_col])
 
-if val_range and "_market_value" in dfp.columns:
-    dfp = dfp[dfp["_market_value"].between(val_range[0], val_range[1])]
-if (d_from and d_to) and "_contract_end" in dfp.columns:
+if d_from and d_to and "_contract_end" in dfp.columns:
     dfp = dfp[dfp["_contract_end"].apply(lambda x: x is not None and d_from <= x <= d_to)]
-# +++ NOVO: aplicar filtro de Altura
-if height_range and "_height_cm" in dfp.columns:
-    dfp = dfp[dfp["_height_cm"].between(height_range[0], height_range[1])]
 
 if not len(dfp):
-    st.warning("Nenhum jogador cumpre os filtros/etiquetas selecionados.")
-    st.stop()
+    st.warning("Nenhum jogador cumpre os filtros/etiquetas selecionados."); st.stop()
 
-# ----------------------- Score (com POLARIDADE) -----------------------
 dfp["score"] = sum(
-    weights[src]
-    * pol
-    * dfp[(src if (flag or is_per90_colname(src)) else f"{src}_p90") + "_z"]
-    for src, flag, pol in zip(metric_slots, already_norm_flags, polarity_flags)
-    if src and src in weights  # ignora slots vazios
+    weights[src] * dfp[(src if (flag or is_per90_colname(src)) else f"{src}_p90") + "_z"]
+    for src, flag in zip(metric_slots, already_norm_flags) if src and src in weights
 )
 dfp["score_0_100"] = (dfp["score"].rank(pct=True) * 100).round(1)
 
-# --- Badge simples de qualidade de amostra (🟩/🟨/🟥) ---
+# --- Badge qualidade amostra ---
 def _sample_quality_row(row):
     mins_ok = pd.to_numeric(row[minutes_col], errors="coerce") >= 900
-    # heurística leve: se existir pelo menos 1 coluna *_pct, damos mais 1 ponto
     pct_cols = [c for c in dfp.columns if str(c).endswith("_pct")]
-    pct_ok = len(pct_cols) > 0
-    score = int(mins_ok) + int(pct_ok)  # 0..2
+    score = int(mins_ok) + int(len(pct_cols) > 0)
     if score >= 2: return "🟩"
     if score == 1: return "🟨"
     return "🟥"
 
 dfp["_sample_quality"] = dfp.apply(_sample_quality_row, axis=1)
 
-# ----------------------- Output (único, dedup robusto) -----------------------
-# --- KPIs rápidos ---
-k1, k2, k3 = st.columns([1,1,1])
-# ---- util para obter série de datas de contrato, qualquer que seja o nome da coluna
-def _contract_series(df):
-    if "contract_end" in df.columns:
-        return pd.to_datetime(df["contract_end"], errors="coerce")
-    if "_contract_end" in df.columns:
-        return pd.to_datetime(df["_contract_end"], errors="coerce")
+# ----------------------- KPIs -----------------------
+def _contract_series(df_):
+    if "contract_end" in df_.columns:
+        return pd.to_datetime(df_["contract_end"], errors="coerce")
+    if "_contract_end" in df_.columns:
+        return pd.to_datetime(df_["_contract_end"], errors="coerce")
     return None
 
+k1, k2, k3 = st.columns([1,1,1])
 _s_contract = _contract_series(dfp)
 if _s_contract is not None:
     _days = (_s_contract - pd.Timestamp.today().normalize()).dt.days
@@ -807,172 +557,60 @@ if age_col != "(não usar)" and age_col in dfp.columns:
     k2.metric("Idade média", f"{pd.to_numeric(dfp[age_col], errors='coerce').mean():.1f}")
 else:
     k2.metric("Idade média", "—")
-
-if "contract_end" in dfp.columns:
-    _days = (pd.to_datetime(dfp["contract_end"], errors="coerce") - pd.Timestamp.today()).dt.days
-    k3.metric("Contrato < 12 meses", _n_expiring)
-else:
-    k3.metric("Contrato < 12 meses", 0)
-
+k3.metric("Contrato < 12 meses", _n_expiring)
 st.markdown("<hr>", unsafe_allow_html=True)
 
-# Ordem base: Nome, Equipa, Posição, Divisão, Idade, Minutos, extras, Scores, Métricas(+pct)
+# ----------------------- Output -----------------------
 show_cols = [name_col]
-# inserir a badge de qualidade logo a seguir ao nome
 if "_sample_quality" in dfp.columns and "_sample_quality" not in show_cols:
     show_cols.insert(1, "_sample_quality")
-if team_col != "(não usar)":
-    show_cols.append(team_col)
+if team_col != "(não usar)": show_cols.append(team_col)
 show_cols.append(pos_col)
-# +++ NOVO: inserir Altura e Pé preferido logo a seguir à posição
-if "_height_cm" in dfp.columns:
-    show_cols.append("_height_cm")
-if "_strong_foot" in dfp.columns:
-    show_cols.append("_strong_foot")
-if division_col != "(não usar)":
-    show_cols.append(division_col)
-if age_col != "(não usar)":
-    show_cols.append(age_col)
+if "_height_cm" in dfp.columns: show_cols.append("_height_cm")
+if "_strong_foot" in dfp.columns: show_cols.append("_strong_foot")
+if division_col != "(não usar)": show_cols.append(division_col)
+if age_col != "(não usar)": show_cols.append(age_col)
 show_cols.append(minutes_col)
-
 if "_market_value" in dfp.columns: show_cols.append("_market_value")
 if "_contract_end" in dfp.columns: show_cols.append("_contract_end")
 show_cols += ["score", "score_0_100"]
-
 for src, flag in zip(metric_slots, already_norm_flags):
-    if not src:
-        continue
+    if not src: continue
     per90_name = src if (flag or is_per90_colname(src)) else f"{src}_p90"
     show_cols += [per90_name, per90_name + "_pct"]
 
-# dedupe da lista
-seen = set()
-ordered_unique = []
+seen, ordered_unique = set(), []
 for c in show_cols:
     if c not in seen:
-        ordered_unique.append(c)
-        seen.add(c)
+        ordered_unique.append(c); seen.add(c)
 
-# construir coluna-a-coluna com nomes finais únicos (aplicando renames de _market/_contract)
-series_list = []
-name_counts = defaultdict(int)
-
+series_list, name_counts = [], defaultdict(int)
 def target_name(src_name: str) -> str:
     if src_name == "_market_value": return "market_value"
     if src_name == "_contract_end": return "contract_end"
     if src_name == "_height_cm": return "Height (cm)"
-    if src_name == "_strong_foot": return "Strong Foot"    
+    if src_name == "_strong_foot": return "Strong Foot"
     return str(src_name)
 
 for src in ordered_unique:
-    if src not in dfp.columns:
-        continue
+    if src not in dfp.columns: continue
     tgt = target_name(src)
     existing = [s.name for s in series_list]
     if tgt in existing:
-        name_counts[tgt] += 1
-        tgt = f"{tgt}.{name_counts[tgt]}"
+        name_counts[tgt] += 1; tgt = f"{tgt}.{name_counts[tgt]}"
     else:
         name_counts[tgt] = 0
-    s = dfp[src].copy()
-    s.name = tgt
+    s = dfp[src].copy(); s.name = tgt
     series_list.append(s)
 
 out = pd.concat(series_list, axis=1).sort_values("score", ascending=False).reset_index(drop=True)
-
-# unicidade final por segurança
 out.columns = make_unique(out.columns)
 
-def _style_df(df_):
-    sty = df_.style
-
-    # Definir formatos para cada tipo de coluna
-    sty = sty.format({
-        "Age": "{:.0f}",             # sem casas decimais
-        "Minutes": "{:.0f}",         # sem casas decimais
-        "market_value": "{:,.0f}",   # inteiro com separador
-        "score": "{:.3f}",           # 3 casas
-        "score_0_100": "{:.1f}",     # 1 casa
-    })
-
-    # Aplicar também às métricas % (terminam em _pct) -> 3 casas
-    pct_cols = [c for c in df_.columns if str(c).endswith("_pct")]
-    for c in pct_cols:
-        sty = sty.format({c: "{:.3f}"})
-
-    # Gradientes visuais
-    if "score_0_100" in df_.columns:
-        sty = sty.background_gradient(subset=["score_0_100"], cmap="Greens")
-    if pct_cols:
-        sty = sty.background_gradient(subset=pct_cols, cmap="Blues")
-
-    # Contrato a vermelho se expira em < 12 meses
-    if "contract_end" in df_.columns:
-        def warn_contract(col):
-            today = pd.Timestamp.today().date()
-            def colorize(x):
-                try:
-                    d = pd.to_datetime(x).date()
-                    months = (d.year - today.year) * 12 + (d.month - today.month)
-                    return "background-color: rgba(189,0,3,0.08)" if months <= 12 else ""
-                except Exception:
-                    return ""
-            return [colorize(v) for v in col]
-        sty = sty.apply(warn_contract, subset=["contract_end"])
-
-    return sty
-
-
-# ... código acima que prepara o "out" ...
-
-# --- FORMATAÇÃO NUMÉRICA ANTES DE ESTILIZAR ---
-out_fmt = out.copy()
-
-# 0 casas: idade, minutos, market_value
-for col0 in [c for c in [age_col, minutes_col, "market_value"] if c in out_fmt.columns]:
-    out_fmt[col0] = pd.to_numeric(out_fmt[col0], errors="coerce").round(0).astype("Int64")
-
-# 3 casas: score bruto
-if "score" in out_fmt.columns:
-    out_fmt["score"] = pd.to_numeric(out_fmt["score"], errors="coerce").round(4)
-
-# 1 casa: score 0–100
-if "score_0_100" in out_fmt.columns:
-    out_fmt["score_0_100"] = pd.to_numeric(out_fmt["score_0_100"], errors="coerce").round(2)
-
-# 3 casas: todas as colunas que terminem com _pct
-for c in [c for c in out_fmt.columns if str(c).endswith("_pct")]:
-    out_fmt[c] = pd.to_numeric(out_fmt[c], errors="coerce").round(3)
-
-# --- ESTILO ---
-def _style_df(df_):
-    sty = df_.style
-    pct_cols = [c for c in df_.columns if str(c).endswith("_pct")]
-    if pct_cols:
-        sty = sty.background_gradient(subset=pct_cols, cmap="Blues")
-    if "contract_end" in df_.columns:
-        def warn_contract(col):
-            today = pd.Timestamp.today().date()
-            def colorize(x):
-                try:
-                    d = pd.to_datetime(x).date()
-                    months = (d.year - today.year) * 12 + (d.month - today.month)
-                    return "background-color: rgba(189,0,3,0.08)" if months <= 12 else ""
-                except Exception:
-                    return ""
-            return [colorize(v) for v in col]
-        sty = sty.apply(warn_contract, subset=["contract_end"])
-    return sty
-
-# ================== TABELA (AgGrid) COM FORMATAÇÃO + TABS ==================
-# 1) Preparar cópia para formatação
+# ================== TABELA (AgGrid) + Gráficos ==================
 table = out.copy()
-
-# Datas human-readable
 if "contract_end" in table.columns:
     table["contract_end"] = pd.to_datetime(table["contract_end"], errors="coerce").dt.strftime("%Y-%m-%d")
 
-# Formatters / cell styles
 fmt_3dec = JsCode("function(p){ if(p.value==null) return ''; return Number(p.value).toFixed(3); }")
 fmt_1dec = JsCode("function(p){ if(p.value==null) return ''; return Number(p.value).toFixed(1); }")
 
@@ -981,8 +619,8 @@ function(p){
   if (p.value == null) return {};
   const v = Number(p.value);
   const clip = Math.max(-3, Math.min(3, v));
-  const hue  = (clip >= 0) ? 210 : 0;            // 210=azul, 0=vermelho
-  const light = 100 - (Math.abs(clip)/3)*60;     // 100→40
+  const hue  = (clip >= 0) ? 210 : 0;
+  const light = 100 - (Math.abs(clip)/3)*60;
   const color = `hsl(${hue}, 82%, ${light}%)`;
   const txt   = (light < 55) ? 'white' : 'black';
   return {'backgroundColor': color, 'color': txt};
@@ -993,7 +631,7 @@ cell_blue_grad = JsCode("""
 function(p){
   if (p.value == null) return {};
   const v = Math.max(0, Math.min(100, Number(p.value)));
-  const light = 100 - v*0.5;                     // 100→50
+  const light = 100 - v*0.5;
   const color = `hsl(210, 85%, ${light}%)`;
   const txt   = (light < 55) ? 'white' : 'black';
   return {'backgroundColor': color, 'color': txt};
@@ -1008,47 +646,36 @@ function(p){
   var today = new Date();
   var diffDays = (d - today) / (1000*60*60*24);
   if (diffDays < 0) {
-    return {'backgroundColor':'#ffd6d6', 'color':'#7a0000'};   // expirado
+    return {'backgroundColor':'#ffd6d6', 'color':'#7a0000'};
   }
   if (diffDays <= 365) {
-    return {'backgroundColor':'#ffecec', 'color':'#7a0000'};   // < 12m
+    return {'backgroundColor':'#ffecec', 'color':'#7a0000'};
   }
   return {};
 }
 """)
 
-# 2) GridOptions
 gb = GridOptionsBuilder.from_dataframe(table)
-gb.configure_default_column(
-    filter=True, sortable=True, resizable=True, floatingFilter=True)
+gb.configure_default_column(filter=True, sortable=True, resizable=True, floatingFilter=True)
 gb.configure_column(str(name_col), minWidth=100)
 if team_col in table.columns: gb.configure_column(team_col, minWidth=100)
 if pos_col  in table.columns: gb.configure_column(pos_col,  minWidth=100)
 
-# tooltips principais
 tooltips = {}
 tooltips[str(name_col)] = "Nome do jogador"
-if team_col != "(não usar)" and team_col in table.columns:
-    tooltips[team_col] = "Equipa / Clube"
-if "score" in table.columns:
-    tooltips["score"] = "Soma ponderada de z-scores (negativo/positivo)"
-if "score_0_100" in table.columns:
-    tooltips["score_0_100"] = "Percentil do score dentro do conjunto filtrado"
-if "contract_end" in table.columns:
-    tooltips["contract_end"] = "Fim de contrato (vermelho = < 12 meses ou expirado)"
+if team_col != "(não usar)" and team_col in table.columns: tooltips[team_col] = "Equipa / Clube"
+if "score" in table.columns: tooltips["score"] = "Soma ponderada de z-scores (negativo/positivo)"
+if "score_0_100" in table.columns: tooltips["score_0_100"] = "Percentil do score dentro do conjunto filtrado"
+if "contract_end" in table.columns: tooltips["contract_end"] = "Fim de contrato (vermelho = < 12 meses ou expirado)"
 for col, tip in tooltips.items():
     if col in table.columns:
         gb.configure_column(col, headerTooltip=tip, tooltipField=col)
 
-# filtro de texto explícito em Name
 gb.configure_column(str(name_col), filter="agTextColumnFilter")
-
-# alinhamento numérico à direita
 for c in table.columns:
     if pd.api.types.is_numeric_dtype(table[c]):
         gb.configure_column(c, type=["rightAligned"])
 
-# formatação e cores
 if "score" in table.columns:
     gb.configure_column("score", valueFormatter=fmt_3dec, cellStyle=cell_divergent)
 if "score_0_100" in table.columns:
@@ -1059,61 +686,37 @@ for c in table.columns:
 if "contract_end" in table.columns:
     gb.configure_column("contract_end", cellStyle=cell_contract_warn)
 
-# colunas pinadas + sort padrão
 pin_cols = [str(name_col)]
-if "_sample_quality" in table.columns:
-    pin_cols.append("_sample_quality")    # <- pin badge
+if "_sample_quality" in table.columns: pin_cols.append("_sample_quality")
 for c in [team_col, pos_col]:
     if c and c in table.columns and c not in pin_cols:
         pin_cols.append(c)
 gb.configure_columns(pin_cols, pinned=True)
-
 if "score" in table.columns:
     gb.configure_column("score", sort="desc")
 
 go = gb.build()
-
-# ---- Auto-size real pelo conteúdo (sem cortar texto) ----
-# mede colunas fora do viewport
 go["suppressColumnVirtualisation"] = True
-
-_autoSizeBody = """
+go["onFirstDataRendered"] = JsCode("""
 function(p){
   const cols = p.columnApi.getColumns();
   if (!cols) return;
   const ids = [];
   cols.forEach(c => ids.push(c.getColId()));
-  // false => considera cabeçalhos também
   p.columnApi.autoSizeColumns(ids, false);
 }
-"""
+""")
+go["rowHeight"] = 30
+go["headerHeight"] = 34
 
-
-go["onFirstDataRendered"] = JsCode(_autoSizeBody)
-
-# linhas/cabeçalho mais compactos
-go["rowHeight"] = 30             # default ~ 37
-go["headerHeight"] = 34          # default ~ 42
-
-
-# pesquisa global (quick filter) e autofit em render/resize
 q = st.text_input("🔎 Pesquisa global na tabela", "", placeholder="Nome, equipa, liga…")
-if q:
-    go["quickFilterText"] = q
+if q: go["quickFilterText"] = q
 
-# 3) Tabs: Ranking / Gráficos rápidos
 tab1, tab2 = st.tabs(["📊 Ranking", "📈 Gráficos rápidos"])
 with tab1:
-    AgGrid(
-        table,
-        gridOptions=go,
-        theme="balham",
-        height=780,
-        allow_unsafe_jscode=True
-    )
+    AgGrid(table, gridOptions=go, theme="balham", height=780, allow_unsafe_jscode=True)
 
 with tab2:
-    # gráfico simples: distribuição do score ou percentis
     _opts = [c for c in table.columns if c in ("score","score_0_100") or str(c).endswith("_pct")]
     if _opts:
         sel = st.selectbox("Distribuição de:", _opts, index=0)
@@ -1125,12 +728,36 @@ with tab2:
         st.altair_chart(chart, use_container_width=True)
     else:
         st.info("Sem colunas numéricas selecionáveis para gráfico.")
-# ================== /TABELA (AgGrid) ==================
+
 st.caption("Score bruto = soma(peso × z-score). Score (0–100) = percentil do score dentro do conjunto filtrado.")
-# Exportações
+
+# ----------------------- Presets (guardar / carregar) -----------------------
+st.sidebar.markdown("---")
+st.sidebar.subheader("Presets")
+preset = {
+    "name_col": name_col, "team_col": team_col, "division_col": division_col, "age_col": age_col,
+    "pos_col": pos_col, "minutes_col": minutes_col,
+    "value_col": value_col, "contract_col": contract_col,
+    "profile": profile, "profile_labels": profile_labels,
+    "metric_slots": metric_slots, "already_norm_flags": already_norm_flags,
+    "weights": weights, "min_minutes": int(min_minutes),
+}
+st.sidebar.download_button("💾 Guardar preset", data=json.dumps(preset, ensure_ascii=False).encode("utf-8"),
+                           file_name=f"preset_{profile}.json", mime="application/json")
+
+preset_up = st.sidebar.file_uploader("Carregar preset (.json)", type=["json"], label_visibility="collapsed")
+if preset_up:
+    try:
+        P = json.loads(preset_up.read().decode("utf-8"))
+        st.session_state["_pending_preset"] = P
+        st.sidebar.success("Preset carregado — a aplicar…")
+        st.rerun()
+    except Exception as e:
+        st.sidebar.error(f"Preset inválido: {e}")
+
+# ----------------------- Exportações -----------------------
 csv_bytes = out.to_csv(index=False).encode("utf-8")
 st.download_button("⬇️ Exportar CSV", data=csv_bytes, file_name=f"ranking_{profile}.csv", mime="text/csv")
-
 try:
     import io as _io
     import xlsxwriter  # noqa
@@ -1140,82 +767,3 @@ try:
     st.download_button("⬇️ Exportar Excel", data=buf.getvalue(), file_name=f"ranking_{profile}.xlsx")
 except Exception:
     st.info("Para exportar em Excel, instala:  pip install XlsxWriter")
-
-# ----------------------- Presets -----------------------
-st.sidebar.markdown("---")
-st.sidebar.subheader("Presets")
-
-# Guardar preset (mantém igual + guarda polaridade)
-preset = {
-    "name_col": name_col, "team_col": team_col, "division_col": division_col, "age_col": age_col,
-    "pos_col": pos_col, "minutes_col": minutes_col,
-    "value_col": value_col, "contract_col": contract_col,
-    "profile": profile, "profile_labels": profile_labels,
-    "metric_slots": [m for m in metric_slots if m],  # ignora slots vazios
-    "already_norm_flags": [f for m, f in zip(metric_slots, already_norm_flags) if m],
-    "polarity_flags": [p for m, p in zip(metric_slots, polarity_flags) if m],
-    "weights": {m: weights.get(m, 0.0) for m in [m for m in metric_slots if m]},
-    "min_minutes": int(min_minutes),
-}
-st.sidebar.download_button(
-    "💾 Guardar preset",
-    data=json.dumps(preset, ensure_ascii=False).encode("utf-8"),
-    file_name=f"preset_{profile}.json",
-    mime="application/json"
-)
-
-# Carregar preset e APLICAR à UI
-preset_up = st.sidebar.file_uploader("Carregar preset (.json)", type=["json"], label_visibility="collapsed")
-if preset_up:
-    try:
-        P = json.loads(preset_up.read().decode("utf-8"))
-
-        # 1) Perfil
-        if "profile" in P and P["profile"] in PROFILES:
-            st.session_state["_pending_profile"] = P["profile"]
-
-        # 2) Etiquetas (dependem da key dinâmica labels_<perfil>)
-        if "profile" in P and "profile_labels" in P:
-            st.session_state[f"labels_{P['profile']}"] = P["profile_labels"]
-
-        # 3) Minutos mínimos
-        if "min_minutes" in P:
-            st.session_state["min_minutes"] = int(P["min_minutes"])
-
-        # 4) Métricas (5 slots)
-        metrics = P.get("metric_slots", [])
-        flags   = P.get("already_norm_flags", [])
-        pols    = P.get("polarity_flags", [])
-        # normalizar tamanhos (até 5)
-        for i in range(5):
-            m  = metrics[i] if i < len(metrics) else None
-            nf = bool(flags[i]) if i < len(flags) else False
-            pv = int(pols[i]) if i < len(pols) else +1
-
-            if m is None:
-                # slot vazio
-                st.session_state[f"metric_sel_{i}"]  = "(escolher métrica)"
-                st.session_state[f"metric_norm_{i}"] = False
-                st.session_state[f"metric_inv_{i}"]  = False
-            else:
-                st.session_state[f"metric_sel_{i}"]  = m
-                st.session_state[f"metric_norm_{i}"] = nf
-                st.session_state[f"metric_inv_{i}"]  = (pv == -1)
-
-        # 5) Pesos — sliders são w_0..w_4; alinhamos por ordem das métricas no preset
-        W = P.get("weights", {})
-        for i in range(5):
-            if i < len(metrics) and metrics[i] in W:
-                st.session_state[f"w_{i}"] = float(W[metrics[i]])
-            else:
-                # se não houver, define 0.0 para não rebentar a soma
-                st.session_state[f"w_{i}"] = 0.0
-
-        st.sidebar.success("✅ Preset carregado. A aplicar…")
-        if "_pending_profile" in st.session_state:
-            st.session_state["profile_sel"] = st.session_state.pop("_pending_profile")
-        st.rerun()
-
-    except Exception as e:
-        st.sidebar.error(f"Preset inválido: {e}")
-
