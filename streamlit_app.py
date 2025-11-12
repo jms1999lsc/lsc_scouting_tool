@@ -278,7 +278,7 @@ with st.sidebar.expander("⚙️ Mapeamento", expanded=True):
 # ----------------------- Filtros (juntos) -----------------------
 st.sidebar.markdown("---")
 st.sidebar.subheader("Filtros")
-min_minutes = st.sidebar.slider("Minutos mínimos", 0, 4500, 900, 30)
+profile = st.sidebar.selectbox("Perfil a ranquear", list(PROFILES.keys()), key="profile_sel")
 age_range = None          # ← NEW
 val_range = None
 d_from = d_to = None
@@ -628,7 +628,7 @@ def suggest_defaults(profile_key_list, candidates):
 # ----------------------- Sidebar: Perfil / Etiquetas / Métricas / Pesos -----------------------
 st.sidebar.markdown("---")
 st.sidebar.subheader("Perfil / Etiquetas")
-profile = st.sidebar.selectbox("Perfil a ranquear", list(PROFILES.keys()))
+profile = st.sidebar.selectbox("Perfil a ranquear", list(PROFILES.keys()), key="profile_sel")
 unique_pos_vals = sorted(map(str, dfw[pos_col].dropna().unique().tolist()))
 
 # Valores disponíveis na coluna de posição
@@ -1144,25 +1144,76 @@ except Exception:
 # ----------------------- Presets -----------------------
 st.sidebar.markdown("---")
 st.sidebar.subheader("Presets")
+
+# Guardar preset (mantém igual + guarda polaridade)
 preset = {
     "name_col": name_col, "team_col": team_col, "division_col": division_col, "age_col": age_col,
     "pos_col": pos_col, "minutes_col": minutes_col,
     "value_col": value_col, "contract_col": contract_col,
     "profile": profile, "profile_labels": profile_labels,
-    "metric_slots": metric_slots, "already_norm_flags": already_norm_flags,
-    "polarity_flags": polarity_flags,  # +++ NOVO: guarda polaridade nos presets
-    "weights": weights, "min_minutes": int(min_minutes),
+    "metric_slots": [m for m in metric_slots if m],  # ignora slots vazios
+    "already_norm_flags": [f for m, f in zip(metric_slots, already_norm_flags) if m],
+    "polarity_flags": [p for m, p in zip(metric_slots, polarity_flags) if m],
+    "weights": {m: weights.get(m, 0.0) for m in [m for m in metric_slots if m]},
+    "min_minutes": int(min_minutes),
 }
-st.sidebar.download_button("💾 Guardar preset", data=json.dumps(preset, ensure_ascii=False).encode("utf-8"),
-                           file_name=f"preset_{profile}.json", mime="application/json")
+st.sidebar.download_button(
+    "💾 Guardar preset",
+    data=json.dumps(preset, ensure_ascii=False).encode("utf-8"),
+    file_name=f"preset_{profile}.json",
+    mime="application/json"
+)
+
+# Carregar preset e APLICAR à UI
 preset_up = st.sidebar.file_uploader("Carregar preset (.json)", type=["json"], label_visibility="collapsed")
 if preset_up:
     try:
         P = json.loads(preset_up.read().decode("utf-8"))
-        st.sidebar.success("Preset carregado (aplica manualmente as escolhas na UI).")
-        # (Opcional) se quiseres pré-preencher os toggles da UI com a polaridade do preset:
-        # if "polarity_flags" in P:
-        #     for i, pol in enumerate(P["polarity_flags"][:5]):
-        #         st.session_state[f"metric_inv_{i}"] = (pol == -1)
+
+        # 1) Perfil
+        if "profile" in P and P["profile"] in PROFILES:
+            st.session_state["profile_sel"] = P["profile"]
+
+        # 2) Etiquetas (dependem da key dinâmica labels_<perfil>)
+        if "profile" in P and "profile_labels" in P:
+            st.session_state[f"labels_{P['profile']}"] = P["profile_labels"]
+
+        # 3) Minutos mínimos
+        if "min_minutes" in P:
+            st.session_state["min_minutes"] = int(P["min_minutes"])
+
+        # 4) Métricas (5 slots)
+        metrics = P.get("metric_slots", [])
+        flags   = P.get("already_norm_flags", [])
+        pols    = P.get("polarity_flags", [])
+        # normalizar tamanhos (até 5)
+        for i in range(5):
+            m  = metrics[i] if i < len(metrics) else None
+            nf = bool(flags[i]) if i < len(flags) else False
+            pv = int(pols[i]) if i < len(pols) else +1
+
+            if m is None:
+                # slot vazio
+                st.session_state[f"metric_sel_{i}"]  = "(escolher métrica)"
+                st.session_state[f"metric_norm_{i}"] = False
+                st.session_state[f"metric_inv_{i}"]  = False
+            else:
+                st.session_state[f"metric_sel_{i}"]  = m
+                st.session_state[f"metric_norm_{i}"] = nf
+                st.session_state[f"metric_inv_{i}"]  = (pv == -1)
+
+        # 5) Pesos — sliders são w_0..w_4; alinhamos por ordem das métricas no preset
+        W = P.get("weights", {})
+        for i in range(5):
+            if i < len(metrics) and metrics[i] in W:
+                st.session_state[f"w_{i}"] = float(W[metrics[i]])
+            else:
+                # se não houver, define 0.0 para não rebentar a soma
+                st.session_state[f"w_{i}"] = 0.0
+
+        st.sidebar.success("✅ Preset carregado. A aplicar…")
+        st.rerun()
+
     except Exception as e:
         st.sidebar.error(f"Preset inválido: {e}")
+
