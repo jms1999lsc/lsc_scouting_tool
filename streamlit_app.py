@@ -278,7 +278,6 @@ with st.sidebar.expander("⚙️ Mapeamento", expanded=True):
 # ----------------------- Filtros (juntos) -----------------------
 st.sidebar.markdown("---")
 st.sidebar.subheader("Filtros")
-profile = st.sidebar.selectbox("Perfil a ranquear", list(PROFILES.keys()), key="profile_sel")
 age_range = None          # ← NEW
 val_range = None
 d_from = d_to = None
@@ -1216,4 +1215,5 @@ if preset_up:
 
     except Exception as e:
         st.sidebar.error(f"Preset inválido: {e}")
+
 
