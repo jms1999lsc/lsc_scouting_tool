@@ -278,6 +278,7 @@ with st.sidebar.expander("⚙️ Mapeamento", expanded=True):
 # ----------------------- Filtros (juntos) -----------------------
 st.sidebar.markdown("---")
 st.sidebar.subheader("Filtros")
+min_minutes = st.sidebar.slider("Minutos mínimos", 0, 4500, 900, 30, key="min_minutes")
 age_range = None          # ← NEW
 val_range = None
 d_from = d_to = None
@@ -1215,5 +1216,3 @@ if preset_up:
 
     except Exception as e:
         st.sidebar.error(f"Preset inválido: {e}")
-
-
