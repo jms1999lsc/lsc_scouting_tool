@@ -260,6 +260,14 @@ if "_pending_preset" in st.session_state:
                 w_list.append(0.0)
         for i, w in enumerate(w_list):
             st.session_state[f"w_{i}"] = float(w)
+
+    neg_list = P.get("negative_flags", [False]*5)
+    for i, col in enumerate(P.get("metric_slots", [])):
+        st.session_state[f"metric_sel_{i}"] = col
+        norm_list = P.get("already_norm_flags", [False]*5)
+        st.session_state[f"metric_norm_{i}"] = bool(norm_list[i]) if i < len(norm_list) else False
+        st.session_state[f"metric_neg_{i}"]  = bool(neg_list[i])  if i < len(neg_list)  else False
+
     # (Opcional) Mapeamentos: dar keys aos selectboxes do mapeamento e setar aqui.
     # st.rerun()  # não é necessário porque vamos criar os widgets já com as chaves setadas
 
@@ -448,29 +456,54 @@ profile_labels = st.sidebar.multiselect(
 # -------- Métricas & Pesos --------
 st.sidebar.subheader("Métricas (5)")
 defaults = suggest_defaults(PROFILES[profile], metric_candidates)
+
 PLACEHOLDER = "(escolher métrica)"
-metric_slots, already_norm_flags = [], []
+metric_slots, already_norm_flags, negative_flags = [], [], []   # <- ADICIONADO negative_flags
 
 for i in range(5):
     options = [PLACEHOLDER] + (metric_candidates if metric_candidates else [])
-    # default via session_state se existir
-    default_val = st.session_state.get(f"metric_sel_{i}", None)
-    if default_val and default_val in options:
-        idx = options.index(default_val)
-    elif i < len(defaults) and defaults[i] in metric_candidates:
+    # índice: se houver default válido, usa-o; senão fica no placeholder
+    if i < len(defaults) and defaults[i] in metric_candidates:
         idx = 1 + metric_candidates.index(defaults[i])
     else:
         idx = 0
-    mcol = st.sidebar.selectbox(f"Métrica {i+1}", options=options, index=idx, key=f"metric_sel_{i}")
+
+    mcol = st.sidebar.selectbox(
+        f"Métrica {i+1}",
+        options=options,
+        index=idx,
+        key=f"metric_sel_{i}"
+    )
+
     if mcol == PLACEHOLDER:
         st.sidebar.caption("Escolhe uma métrica para este slot.")
-        metric_slots.append(None); already_norm_flags.append(False); continue
+        metric_slots.append(None)
+        already_norm_flags.append(False)
+        negative_flags.append(False)      # slot vazio → False
+        continue
+
+    # 1) per90 / % já normalizada?
     infer_norm = infer_already_normalized(dfw[mcol], dfw[minutes_col])
-    flag = st.sidebar.checkbox("Já é per90/percentual (não converter)",
-                               value=st.session_state.get(f"metric_norm_{i}", bool(infer_norm)),
-                               key=f"metric_norm_{i}")
-    st.sidebar.caption("Deteção sugere 'já normalizada'." if infer_norm else "Deteção sugere 'raw' → converter p/90.")
-    metric_slots.append(mcol); already_norm_flags.append(flag)
+    flag_norm = st.sidebar.checkbox(
+        "Já é per90/percentual (não converter)",
+        value=bool(infer_norm),
+        key=f"metric_norm_{i}"
+    )
+    st.sidebar.caption(
+        "Deteção sugere 'já normalizada'."
+        if infer_norm else "Deteção sugere 'raw' → converter p/90."
+    )
+
+    # 2) polaridade negativa? (menor é melhor)
+    flag_neg = st.sidebar.checkbox(
+        "Métrica negativa (menor é melhor)",
+        value=False,
+        key=f"metric_neg_{i}"
+    )
+
+    metric_slots.append(mcol)
+    already_norm_flags.append(flag_norm)
+    negative_flags.append(flag_neg)
 
 chosen_metrics = [m for m in metric_slots if m]
 if len(set(chosen_metrics)) < len(chosen_metrics):
@@ -519,10 +552,17 @@ if d_from and d_to and "_contract_end" in dfp.columns:
 if not len(dfp):
     st.warning("Nenhum jogador cumpre os filtros/etiquetas selecionados."); st.stop()
 
-dfp["score"] = sum(
-    weights[src] * dfp[(src if (flag or is_per90_colname(src)) else f"{src}_p90") + "_z"]
-    for src, flag in zip(metric_slots, already_norm_flags) if src and src in weights
-)
+dfp["score"] = 0.0
+for src, norm_flag, neg_flag in zip(metric_slots, already_norm_flags, negative_flags):
+    if not src or src not in weights:
+        continue
+    base_col = src if (norm_flag or is_per90_colname(src)) else f"{src}_p90"
+    z_col = base_col + "_z"
+    if z_col not in dfp.columns:
+        continue
+    # se a métrica é negativa, inverte o sinal do z-score
+    factor = -1.0 if neg_flag else 1.0
+    dfp["score"] += weights[src] * factor * dfp[z_col]
 dfp["score_0_100"] = (dfp["score"].rank(pct=True) * 100).round(1)
 
 # --- Badge qualidade amostra ---
@@ -740,8 +780,11 @@ preset = {
     "pos_col": pos_col, "minutes_col": minutes_col,
     "value_col": value_col, "contract_col": contract_col,
     "profile": profile, "profile_labels": profile_labels,
-    "metric_slots": metric_slots, "already_norm_flags": already_norm_flags,
-    "weights": weights, "min_minutes": int(min_minutes),
+    "metric_slots": metric_slots,
+    "already_norm_flags": already_norm_flags,
+    "negative_flags": negative_flags,          # <- NOVO
+    "weights": weights,
+    "min_minutes": int(min_minutes),
 }
 
 st.sidebar.download_button(
