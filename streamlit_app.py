@@ -734,6 +734,7 @@ st.caption("Score bruto = soma(peso × z-score). Score (0–100) = percentil do 
 # ----------------------- Presets (guardar / carregar) -----------------------
 st.sidebar.markdown("---")
 st.sidebar.subheader("Presets")
+
 preset = {
     "name_col": name_col, "team_col": team_col, "division_col": division_col, "age_col": age_col,
     "pos_col": pos_col, "minutes_col": minutes_col,
@@ -742,18 +743,36 @@ preset = {
     "metric_slots": metric_slots, "already_norm_flags": already_norm_flags,
     "weights": weights, "min_minutes": int(min_minutes),
 }
-st.sidebar.download_button("💾 Guardar preset", data=json.dumps(preset, ensure_ascii=False).encode("utf-8"),
-                           file_name=f"preset_{profile}.json", mime="application/json")
 
-preset_up = st.sidebar.file_uploader("Carregar preset (.json)", type=["json"], label_visibility="collapsed")
-if preset_up:
+st.sidebar.download_button(
+    "💾 Guardar preset",
+    data=json.dumps(preset, ensure_ascii=False).encode("utf-8"),
+    file_name=f"preset_{profile}.json",
+    mime="application/json"
+)
+
+# ---- NOVO: flag para não re-aplicar o mesmo preset em loop ----
+if "preset_loaded_once" not in st.session_state:
+    st.session_state["preset_loaded_once"] = False
+
+preset_up = st.sidebar.file_uploader(
+    "Carregar preset (.json)", type=["json"], label_visibility="collapsed"
+)
+
+if preset_up and not st.session_state["preset_loaded_once"]:
     try:
         P = json.loads(preset_up.read().decode("utf-8"))
         st.session_state["_pending_preset"] = P
+        st.session_state["preset_loaded_once"] = True   # já tratámos este upload
         st.sidebar.success("Preset carregado — a aplicar…")
         st.rerun()
     except Exception as e:
         st.sidebar.error(f"Preset inválido: {e}")
+
+# Se o utilizador limpar o uploader, permitimos carregar outro preset no futuro
+if preset_up is None:
+    st.session_state["preset_loaded_once"] = False
+
 
 # ----------------------- Exportações -----------------------
 csv_bytes = out.to_csv(index=False).encode("utf-8")
