@@ -657,8 +657,10 @@ for met in set(per90_cols):
     dfp[met + "_z"] = zscore_group(dfp[met], dfp[pos_col])
     dfp[met + "_pct"] = pct_group(dfp[met], dfp[pos_col])
 
+# Filtrar por fim de contrato, mantendo quem não tem data
 if d_from and d_to and "_contract_end" in dfp.columns:
-    dfp = dfp[dfp["_contract_end"].apply(lambda x: x is not None and d_from <= x <= d_to)]
+    mask_known = dfp["_contract_end"].notna()
+    dfp = dfp[ (~mask_known) | (dfp["_contract_end"].between(d_from, d_to)) ]
 
 if not len(dfp):
     st.warning("Nenhum jogador cumpre os filtros/etiquetas selecionados.")
