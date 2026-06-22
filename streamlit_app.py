@@ -366,11 +366,18 @@ if "_market_value_flt" in dfw.columns:
 # Fim de contrato
 d_from = d_to = None
 if "_contract_end" in dfw.columns and dfw["_contract_end"].notna().any():
-    dates_present = [d for d in dfw["_contract_end"] if d is not None]
+    dates_present = [
+        d for d in dfw["_contract_end"]
+        if d is not None and date(2000,1,1) <= d <= date(2050,12,31)
+]
     if dates_present:
-        dmin, dmax = min(dates_present), max(dates_present)
-        d_from, d_to = st.sidebar.date_input("Fim de contrato entre", value=(dmin, dmax))
-
+        dmin = min(dates_present)
+        dmax = max(dates_present)
+    
+        d_from, d_to = st.sidebar.date_input(
+            "Fim de contrato entre",
+            value=(dmin, dmax)
+        )
 # Idade
 age_range = None
 if age_col != "(não usar)":
